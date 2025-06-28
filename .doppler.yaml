@@ -1,0 +1,8 @@
+scoped:
+  /Users/andrew/Coding/Word Addin:
+    project: mswordai
+    config: dev
+version-check:
+    checked-at: 2025-06-28T11:43:24.814612+10:00
+tui:
+    introVersionSeen: 0

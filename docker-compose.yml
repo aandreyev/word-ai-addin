@@ -1,0 +1,26 @@
+services:
+  word-addin-dev:
+    build: .
+    container_name: word-addin-dev
+    volumes:
+      # Mount the project directory
+      - .:/workspace
+      # Preserve node_modules between container restarts
+      - word-addin-node-modules:/workspace/Word-Review-Add-in/node_modules
+    ports:
+      # Expose development server port to host (for Word to access)
+      - "3000:3000"
+    networks:
+      - default
+    environment:
+      - NODE_ENV=development
+    env_file:
+      # Load .env file if it exists (fallback for local development)
+      - .env
+    working_dir: /workspace
+    # Keep container running
+    stdin_open: true
+    tty: true
+
+volumes:
+  word-addin-node-modules:
