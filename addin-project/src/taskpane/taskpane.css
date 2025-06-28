@@ -431,3 +431,33 @@ p {
     color: #605e5c;
     text-align: center;
 }
+
+/* API Mode Indicator */
+.api-mode-indicator {
+    border: 2px solid;
+    transition: all 0.3s ease;
+}
+
+.api-mode-indicator.real-api {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-color: #28a745;
+    color: #155724;
+}
+
+.api-mode-indicator.mock-api {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.api-mode-indicator.error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.api-mode-indicator.checking {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    border-color: #17a2b8;
+    color: #0c5460;
+}

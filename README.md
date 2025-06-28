@@ -185,13 +185,41 @@ The environment is designed for zero-configuration setup once Doppler access is 
 - [Coding Principles](Coding%20principles.md) - Development best practices
 - [Future Enhancements](Future%20Enhancements.md) - Planned improvements
 
-## Support
+## 🔑 API Key Management
 
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review the detailed documentation files
-3. Verify Doppler and Docker setup
-4. Test with a minimal reproduction case
+This add-in uses **build-time secret injection** for secure and seamless API key management.
+
+### Setup Process
+```bash
+# 1. Install and setup Doppler
+brew install dopplerhq/cli/doppler
+doppler login
+
+# 2. Set your Gemini API key
+doppler secrets set GEMINI_API_KEY=your_actual_api_key_here
+
+# 3. Build with Doppler (injects key at build time)
+doppler run -- npm run build
+
+# 4. Start development server
+doppler run -- npm run dev-server
+```
+
+### How It Works
+- **Webpack Injection**: API key is injected directly into compiled JavaScript
+- **Visual Indicators**: Clear "REAL API MODE" vs "MOCK API MODE" status
+- **Automatic Fallback**: Uses mock responses if no valid key found
+- **Zero Runtime Dependencies**: No environment variables needed in browser
+
+### Troubleshooting API Issues
+- **Check Status**: Look for 🌐 **"REAL API MODE"** indicator in the add-in
+- **Rebuild Required**: Always rebuild after changing API key: `doppler run -- npm run build`
+- **Verify Injection**: Check console for "🔑 Using Gemini API key from environment variable"
+
+For detailed API setup, see:
+- [API_QUICK_REFERENCE.md](API_QUICK_REFERENCE.md) - Quick troubleshooting
+- [DOPPLER_SETUP.md](DOPPLER_SETUP.md) - Complete Doppler guide
+- [API_INFRASTRUCTURE_DOCUMENTATION.md](API_INFRASTRUCTURE_DOCUMENTATION.md) - Technical details
 
 ---
 

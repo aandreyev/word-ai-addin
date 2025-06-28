@@ -13,12 +13,12 @@ import { DocumentService } from './document-service.js';
  */
 class AIService {
   constructor() {
-    this.apiKey = this.getApiKey();
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
     this.modelName = 'gemini-1.5-flash';
     this.logger = new AnalysisLogger();
     this.fileLogger = new SimpleFileLogger();
     this.documentService = new DocumentService();
+    // Don't cache the API key - always get it fresh
   }
 
   /**
@@ -33,13 +33,14 @@ class AIService {
       return storedKey;
     }
     
-    // Check for environment variable (if available in browser context)
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+    // Check for environment variable (Doppler injected at build time)
+    const envKey = process.env.GEMINI_API_KEY;
+    if (envKey && envKey !== 'API_KEY_NOT_SET' && envKey !== 'undefined') {
       console.log('🔑 Using Gemini API key from environment variable');
-      return process.env.GEMINI_API_KEY;
+      return envKey;
     }
     
-    // Check for global variable (can be set via Doppler or other means)
+    // Check for global variable
     if (typeof window !== 'undefined' && window.GEMINI_API_KEY) {
       console.log('🔑 Using Gemini API key from window variable');
       return window.GEMINI_API_KEY;
@@ -57,7 +58,6 @@ class AIService {
   setApiKey(apiKey) {
     if (apiKey && apiKey.trim()) {
       localStorage.setItem('GEMINI_API_KEY', apiKey.trim());
-      this.apiKey = apiKey.trim();
       console.log('✅ Gemini API key updated');
     } else {
       console.error('❌ Invalid API key provided');
@@ -194,20 +194,23 @@ ${paragraphReference}
 
 Please provide your response as a JSON array of editing actions. Each action should have this structure:
 {
-  "action": "modify|insert|delete",
-  "sequentialNumber": (paragraph sequential number for modify/delete, starting from 1),
+  "action": "modify|insert|delete|move",
+  "sequentialNumber": (paragraph sequential number for modify/delete/move, starting from 1),
   "afterSequentialNumber": (paragraph sequential number to insert after, for insert actions),
+  "toAfterSequentialNumber": (paragraph sequential number to move after, for move actions),
   "instruction": "brief description of what to change",
   "newContent": "the exact new text to replace the paragraph with (for modify actions) or insert (for insert actions)",
   "reason": "explanation of why this change improves the document"
 }
 
 IMPORTANT NOTES:
-- Use "sequentialNumber" (not "index") to reference paragraphs for modify/delete actions
+- Use "sequentialNumber" (not "index") to reference paragraphs for modify/delete/move actions
 - Use "afterSequentialNumber" (not "after_index") to specify insertion points
+- Use "toAfterSequentialNumber" for move operations target location
 - For "modify" actions: Provide the complete replacement text for the entire paragraph in "newContent"
-- For "insert" actions: Provide the complete new paragraph to insert in "newContent"
+- For "insert" actions: Provide the complete new paragraph to insert in "newContent"  
 - For "delete" actions: No newContent needed
+- For "move" actions: No newContent needed (original content is moved)
 - Sequential numbers start from 1 and only reference non-empty paragraphs
 
 Focus on:
@@ -216,6 +219,7 @@ Focus on:
 3. Strengthening transitions between ideas
 4. Removing redundancy
 5. Enhancing overall flow
+6. Reorganizing content for better structure (use move operations when beneficial)
 
 Limit your response to the 5 most impactful suggestions. Return only the JSON array, no other text.
 `;
@@ -229,11 +233,13 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
   async callGeminiAPI(prompt) {
     const apiKey = this.getApiKey();
     
-    // Check if we have a real API key
+    // Check if we have a real API key - if not, use fallback
     if (!apiKey || apiKey === 'GEMINI_API_KEY_PLACEHOLDER') {
       console.warn('⚠️ No Gemini API key found. Using fallback mock response.');
-      console.log('💡 To use real Gemini API, store your API key in localStorage:');
-      console.log('   localStorage.setItem("GEMINI_API_KEY", "your-actual-api-key")');
+      console.log('💡 To use real Gemini API:');
+      console.log('   1. Get an API key from https://ai.google.dev/');
+      console.log('   2. Store it: localStorage.setItem("GEMINI_API_KEY", "your-actual-api-key")');
+      console.log('   3. Refresh the page to use real AI analysis');
       
       // Return mock data as fallback
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -297,6 +303,7 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
       if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
         const aiResponse = data.candidates[0].content.parts[0].text;
         console.log('✅ Received real Gemini API response');
+        console.log('🎯 Using live AI analysis (not mock data)');
         return aiResponse;
       } else {
         console.error('❌ Unexpected Gemini API response format:', data);
@@ -318,34 +325,23 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
    * @returns {string} - Mock JSON response
    */
   getMockResponse() {
-    // Test Move Operations with Mixed Actions - comprehensive test of all functionality
+    console.log('📋 Using fallback mock response (deprecated - switch to real Gemini API)');
+    
+    // Basic modify + insert response as fallback (safer than complex moves)
     return `[
       {
-        "action": "move",
-        "sequentialNumber": 3,
-        "toAfterSequentialNumber": 5,
-        "instruction": "Move the third paragraph to after the fifth paragraph for better logical flow.",
-        "reason": "The third paragraph's content relates more closely to the content after paragraph 5"
-      },
-      {
-        "action": "move", 
-        "sequentialNumber": 1,
-        "toAfterSequentialNumber": 2,
-        "instruction": "Move the opening paragraph to after the second paragraph.",
-        "reason": "The introduction works better after establishing context in paragraph 2"
-      },
-      {
         "action": "modify",
-        "sequentialNumber": 4,
-        "instruction": "Update this paragraph to reflect the new document structure after moves.",
-        "newContent": "This fourth paragraph has been modified to acknowledge the restructured document flow after moving paragraphs to their optimal positions.",
-        "reason": "Ensures content remains coherent after structural changes"
+        "sequentialNumber": 1,
+        "instruction": "Improve the opening paragraph for better clarity and impact.",
+        "newContent": "This opening paragraph has been enhanced by AI to provide clearer, more engaging content that captures the reader's attention from the very beginning.",
+        "reason": "Strong openings are crucial for maintaining reader engagement"
       },
       {
-        "action": "delete",
-        "sequentialNumber": 6,
-        "instruction": "Remove this paragraph as it's no longer needed after restructuring.",
-        "reason": "This content becomes redundant after the document restructuring"
+        "action": "insert",
+        "afterSequentialNumber": 1,
+        "instruction": "Add a transitional sentence to improve document flow.",
+        "newContent": "The following content demonstrates how AI can intelligently enhance document structure and readability through targeted suggestions.",
+        "reason": "Transitions help readers follow the logical progression of ideas"
       }
     ]`;
   }

@@ -58,3 +58,5 @@ Do each step in small increments, and seek review and confirmation from me befor
 
 These principles ensure our development environment is secure, portable, and maintainable across team members and deployment scenarios.
 
+# Interfaces and UI
+Keep all interfaces and UI simple and elegant. do not clutter. focus on usability and clarity.

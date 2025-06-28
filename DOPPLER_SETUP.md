@@ -1,6 +1,6 @@
 # Doppler Secrets Management Guide
 
-This project uses [Doppler](https://doppler.com) for secure secrets management with automatic token injection into Docker containers. Doppler provides a centralized, secure way to manage environment variables and API keys across different environments (development, staging, production).
+This project uses [Doppler](https://doppler.com) for secure secrets management with automatic environment variable injection at build time. Doppler provides a centralized, secure way to manage API keys and build them directly into the Word add-in for seamless operation.
 
 ## Quick Setup
 
@@ -15,38 +15,49 @@ doppler login
 # 3. Set your Gemini API key (required)
 doppler secrets set GEMINI_API_KEY=your_actual_api_key_here
 
-# 4. Start development - that's it!
-./dev-start.sh
+# 4. Build and run with Doppler
+doppler run -- npm run build
+doppler run -- npm run dev-server
 ```
-
-The `dev-start.sh` script automatically handles all token generation, injection, and cleanup.
 
 ## How It Works
 
-### Automatic Token Management
-The development environment uses a sophisticated token lifecycle:
+### Build-Time API Key Injection
+The Word add-in uses webpack DefinePlugin to inject API keys at build time:
 
-1. **Token Generation**: `dev-start.sh` creates a temporary service token (15-minute lifetime)
-2. **Secure Injection**: Token is passed to Docker container via environment variable
-3. **Automatic Cleanup**: Token is automatically revoked when you exit the development shell
-4. **Fallback Support**: If Doppler unavailable, automatically falls back to `.env` file
+1. **Build Process**: `doppler run -- npm run build` injects secrets into the compiled JavaScript
+2. **Webpack Replacement**: `process.env.GEMINI_API_KEY` is replaced with the actual API key value
+3. **Browser Detection**: The add-in checks for the injected key and shows "REAL API MODE" vs "MOCK API MODE"
+4. **Fallback Support**: If no key is found, automatically falls back to mock responses
 
-### Inside the Container
-```bash
-# Secrets are automatically available via doppler run
-doppler run -- printenv | grep GEMINI_API_KEY
+### API Key Detection Order
+The system checks for API keys in this priority order:
+1. **localStorage**: `localStorage.getItem('GEMINI_API_KEY')` (user override)
+2. **Environment Variable**: `process.env.GEMINI_API_KEY` (Doppler injected at build time)
+3. **Window Variable**: `window.GEMINI_API_KEY` (manual injection)
+4. **Fallback**: Mock responses if no valid key found
 
-# All development commands work with secrets
-doppler run -- npm start
-doppler run -- npm test
-doppler run -- node your-script.js
-```
+### Visual Feedback
+The add-in shows clear status indicators:
+- 🌐 **REAL API MODE**: Valid API key detected, using live Gemini API
+- 📋 **MOCK API MODE**: No valid key found, using sample responses
 
 ## Environment Variables
 
 ### Required Secrets
 - `GEMINI_API_KEY`: Your Google Gemini API key for AI functionality
-- `GEMINI_MODEL`: The Gemini model to use (default: gemini-pro)
+
+### Build Commands with Doppler
+```bash
+# Build with secrets injection
+doppler run -- npm run build
+
+# Start development server with secrets
+doppler run -- npm run dev-server
+
+# Run any npm command with secrets
+doppler run -- npm run start
+```
 
 ### Development Configuration  
 - `NODE_ENV`: development

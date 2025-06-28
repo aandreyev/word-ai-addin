@@ -33,6 +33,11 @@
                 <h1 class="main-header">Document Analyzer</h1>
                 <p class="main-description">Click the button to analyze the document and get editing suggestions.</p>
                 
+                <!-- API Mode Indicator -->
+                <div id="api-mode-indicator" class="api-mode-indicator" style="margin: 10px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center;">
+                    <div id="api-status" style="font-size: 14px;">🔍 Checking API status...</div>
+                    <div id="api-details" style="font-size: 11px; margin-top: 4px; opacity: 0.8;"></div>
+                </div>
 
                 <button id="analyze-button" class="primary-button">Analyze Document</button>
                 <div id="status-container" class="status-container" style="display: none;"></div>

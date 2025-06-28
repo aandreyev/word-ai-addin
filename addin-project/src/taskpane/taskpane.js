@@ -118,6 +118,9 @@ Office.onReady((info) => {
       updateDocumentInfo();
       console.log('Document info updated');
       
+      // 🔍 DEBUG: Test API key detection
+      testApiKeyDetection();
+      
     } catch (error) {
       console.error('Error during initialization:', error);
     }
@@ -649,6 +652,109 @@ function showSuccess(message) {
     elements.docStatus.style.color = "";
     updateDocumentInfo();
   }, 3000);
+}
+
+/**
+ * Test API key detection for debugging
+ */
+function testApiKeyDetection() {
+  console.log('🔍 DEBUG: Testing API key detection...');
+  
+  try {
+    const indicatorElement = document.getElementById('api-mode-indicator');
+    const statusElement = document.getElementById('api-status');
+    const detailsElement = document.getElementById('api-details');
+    
+    // Test what the AI service detects
+    if (window.aiDocumentReviewService && window.aiDocumentReviewService.aiService) {
+      const aiService = window.aiDocumentReviewService.aiService;
+      
+      console.log('📋 AI Service available:', !!aiService);
+      
+      if (aiService.getApiKey) {
+        const detectedKey = aiService.getApiKey();
+        console.log('🔑 Detected API key:', detectedKey ? detectedKey.substring(0, 8) + '...' : 'none');
+        
+        const isValid = aiService.hasValidApiKey();
+        console.log('✅ Key is valid:', isValid);
+        console.log('🌐 Will use real API:', isValid);
+        console.log('📋 Will use mock API:', !isValid);
+        
+        // Update visual indicator
+        if (statusElement && detailsElement && indicatorElement) {
+          if (isValid) {
+            indicatorElement.className = 'api-mode-indicator real-api';
+            statusElement.innerHTML = '🌐 REAL API MODE';
+            detailsElement.innerHTML = `Using Gemini API key: ${detectedKey.substring(0, 8)}...`;
+          } else {
+            indicatorElement.className = 'api-mode-indicator mock-api';
+            statusElement.innerHTML = '📋 MOCK API MODE';
+            detailsElement.innerHTML = 'No valid API key found - using sample responses';
+          }
+        }
+      } else {
+        console.log('❌ getApiKey method not available');
+        if (statusElement && indicatorElement) {
+          indicatorElement.className = 'api-mode-indicator error';
+          statusElement.innerHTML = '❌ API Error';
+          detailsElement.innerHTML = 'getApiKey method not available';
+        }
+      }
+    } else {
+      console.log('❌ AI service not available yet');
+      
+      // Fallback: test environment variables directly
+      console.log('🔍 Testing environment variables directly:');
+      let hasKey = false;
+      let keySource = 'none';
+      let keyPreview = '';
+      
+      if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'API_KEY_NOT_SET') {
+        console.log('   process.env available:', true);
+        console.log('   GEMINI_API_KEY:', process.env.GEMINI_API_KEY.substring(0, 8) + '...');
+        hasKey = true;
+        keySource = 'environment variables';
+        keyPreview = process.env.GEMINI_API_KEY.substring(0, 8) + '...';
+      } else {
+        console.log('   process.env GEMINI_API_KEY:', 'not found or placeholder');
+      }
+      
+      // Test localStorage
+      const storedKey = localStorage.getItem('GEMINI_API_KEY');
+      if (storedKey && storedKey !== 'GEMINI_API_KEY_PLACEHOLDER') {
+        console.log('   localStorage key:', storedKey.substring(0, 8) + '...');
+        hasKey = true;
+        keySource = 'localStorage';
+        keyPreview = storedKey.substring(0, 8) + '...';
+      } else {
+        console.log('   localStorage key:', 'not found');
+      }
+      
+      // Update visual indicator
+      if (statusElement && detailsElement && indicatorElement) {
+        if (hasKey) {
+          indicatorElement.className = 'api-mode-indicator real-api';
+          statusElement.innerHTML = '🌐 REAL API MODE';
+          detailsElement.innerHTML = `Key found in ${keySource}: ${keyPreview} (service loading...)`;
+        } else {
+          indicatorElement.className = 'api-mode-indicator mock-api';
+          statusElement.innerHTML = '📋 MOCK API MODE';
+          detailsElement.innerHTML = 'No API key found - will use sample responses';
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error testing API key detection:', error);
+    const statusElement = document.getElementById('api-status');
+    const detailsElement = document.getElementById('api-details');
+    const indicatorElement = document.getElementById('api-mode-indicator');
+    
+    if (statusElement && indicatorElement) {
+      indicatorElement.className = 'api-mode-indicator error';
+      statusElement.innerHTML = '❌ API Status Error';
+      detailsElement.innerHTML = error.message;
+    }
+  }
 }
 
 
