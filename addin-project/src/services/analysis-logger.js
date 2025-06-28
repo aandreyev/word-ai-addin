@@ -418,34 +418,6 @@ Total Sessions: ${sessions.length}
     }
   }
 
-  /**
-   * Test download functionality (for debugging)
-   */
-  static testDownload() {
-    console.log('🧪 Testing download functionality...');
-    
-    try {
-      const testContent = `# Test Download\n\nThis is a test markdown file.\nGenerated at: ${new Date().toISOString()}\n`;
-      const blob = new Blob([testContent], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      downloadLink.download = 'test-download.md';
-      downloadLink.style.display = 'none';
-      
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      
-      console.log('✅ Test download initiated - check Downloads folder for test-download.md');
-      
-    } catch (error) {
-      console.error('❌ Test download failed:', error);
-    }
-  }
 }
 
 // Export for use in other modules

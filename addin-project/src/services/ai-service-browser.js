@@ -318,28 +318,34 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
    * @returns {string} - Mock JSON response
    */
   getMockResponse() {
-    // Test Mixed Operations - Modify, Delete, and Insert to test comprehensive functionality
-    // Delete paragraph 2 BEFORE insertion to test complex ordering scenarios
+    // Test Move Operations with Mixed Actions - comprehensive test of all functionality
     return `[
       {
-        "action": "modify",
+        "action": "move",
+        "sequentialNumber": 3,
+        "toAfterSequentialNumber": 5,
+        "instruction": "Move the third paragraph to after the fifth paragraph for better logical flow.",
+        "reason": "The third paragraph's content relates more closely to the content after paragraph 5"
+      },
+      {
+        "action": "move", 
         "sequentialNumber": 1,
-        "instruction": "Improve the opening paragraph with clearer language.",
-        "newContent": "This document serves as a comprehensive test case for AI-powered editing capabilities. I'm specifically evaluating how well the system handles multiple modification operations across different paragraphs.",
-        "reason": "More precise and professional opening statement"
+        "toAfterSequentialNumber": 2,
+        "instruction": "Move the opening paragraph to after the second paragraph.",
+        "reason": "The introduction works better after establishing context in paragraph 2"
+      },
+      {
+        "action": "modify",
+        "sequentialNumber": 4,
+        "instruction": "Update this paragraph to reflect the new document structure after moves.",
+        "newContent": "This fourth paragraph has been modified to acknowledge the restructured document flow after moving paragraphs to their optimal positions.",
+        "reason": "Ensures content remains coherent after structural changes"
       },
       {
         "action": "delete",
-        "sequentialNumber": 2,
-        "instruction": "Remove the short second paragraph as it will be replaced by more comprehensive content.",
-        "reason": "Eliminates redundant content and tests deletion before insertion operations"
-      },
-      {
-        "action": "insert",
-        "afterSequentialNumber": 3,
-        "instruction": "Add a new comprehensive paragraph after the third paragraph.",
-        "newContent": "This is a completely new paragraph that has been inserted using the AI add-in. It demonstrates the system's ability to create entirely new paragraphs at specific locations within the document, replacing the deleted content with more substantial material.",
-        "reason": "Improves document flow and tests paragraph insertion after deletion"
+        "sequentialNumber": 6,
+        "instruction": "Remove this paragraph as it's no longer needed after restructuring.",
+        "reason": "This content becomes redundant after the document restructuring"
       }
     ]`;
   }
@@ -475,6 +481,26 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
         if (!hasValidReference) {
           console.warn(`❌ Invalid afterSequentialNumber ${sequentialNumber} for insert action (max: ${maxSequentialNumber})`);
         }
+      } else if (suggestion.action === 'move') {
+        // Move actions need both source and target references
+        const sourceSequentialNumber = suggestion.sequentialNumber;
+        const toAfterSequentialNumber = suggestion.toAfterSequentialNumber;
+        
+        const hasValidSource = sourceSequentialNumber !== undefined && 
+                              sourceSequentialNumber >= 1 && 
+                              sourceSequentialNumber <= maxSequentialNumber;
+        const hasValidTarget = toAfterSequentialNumber !== undefined && 
+                              toAfterSequentialNumber >= 1 && 
+                              toAfterSequentialNumber <= maxSequentialNumber;
+        
+        hasValidReference = hasValidSource && hasValidTarget;
+        if (!hasValidSource) {
+          console.warn(`❌ Invalid sequentialNumber ${sourceSequentialNumber} for move action (max: ${maxSequentialNumber})`);
+        }
+        if (!hasValidTarget) {
+          console.warn(`❌ Invalid toAfterSequentialNumber ${toAfterSequentialNumber} for move action (max: ${maxSequentialNumber})`);
+        }
+        sequentialNumber = sourceSequentialNumber; // For logging purposes
       } else {
         sequentialNumber = suggestion.sequentialNumber;
         hasValidReference = sequentialNumber !== undefined && 
@@ -744,17 +770,96 @@ class AIDocumentReviewService {
         });
       }
       
-      // Apply DELETE operations in a separate Word.run context
-      if (deleteActions.length > 0) {
-        console.log(`\n🗑️ Applying ${deleteActions.length} DELETE actions in SINGLE Word.run context...`);
+      // Apply MOVE operations (copy/insert phase) in a separate Word.run context
+      if (moveActions.length > 0) {
+        console.log(`\n🔄 Applying ${moveActions.length} MOVE actions (copy/insert phase) in SINGLE Word.run context...`);
         
-        // Sort deletes in reverse order to avoid index shifting issues
-        deleteActions.sort((a, b) => {
+        await Word.run(async (context) => {
+          // Get FRESH paragraph references within this context
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text');
+          await context.sync();
+          
+          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for moves`);
+          
+          for (const suggestion of moveActions) {
+            try {
+              console.log(`   Moving sequential ${suggestion.sequentialNumber} after sequential ${suggestion.toAfterSequentialNumber}: "${suggestion.instruction}"`);
+              
+              // Resolve source sequential number to Word index to get content
+              const sourceWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              if (sourceWordIndex === null) {
+                console.error(`   ❌ Could not resolve source sequential ${suggestion.sequentialNumber} to Word index`);
+                continue;
+              }
+              
+              // Resolve target sequential number to Word index for insertion point
+              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.toAfterSequentialNumber, paragraphMapping);
+              if (afterWordIndex === null) {
+                console.error(`   ❌ Could not resolve toAfterSequentialNumber ${suggestion.toAfterSequentialNumber} to Word index`);
+                continue;
+              }
+              
+              // Get source and target paragraphs
+              if (sourceWordIndex >= 0 && sourceWordIndex < paragraphs.items.length &&
+                  afterWordIndex >= 0 && afterWordIndex < paragraphs.items.length) {
+                
+                const sourceParagraph = paragraphs.items[sourceWordIndex];
+                const afterParagraph = paragraphs.items[afterWordIndex];
+                
+                console.log(`🔍 Moving from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}...`);
+                console.log(`📋 Source text: "${sourceParagraph.text.substring(0, 50)}..."`);
+                console.log(`📋 Insert after: "${afterParagraph.text.substring(0, 50)}..."`);
+                
+                // Copy source content and insert after target
+                const sourceContent = sourceParagraph.text;
+                afterParagraph.insertParagraph(sourceContent, Word.InsertLocation.after);
+                
+                console.log(`✅ Copied paragraph content from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}`);
+                appliedCount++;
+              } else {
+                console.error(`❌ Invalid word indices: source ${sourceWordIndex}, after ${afterWordIndex}`);
+              }
+            } catch (error) {
+              console.error(`   ❌ Failed to move sequential ${suggestion.sequentialNumber}:`, error);
+            }
+          }
+          
+          // Single sync to commit all move copy/inserts
+          await context.sync();
+          console.log(`✅ Applied ${moveActions.length} move copy/inserts and synced to document`);
+          
+          // Validate moves were applied
+          const updatedParagraphs = context.document.body.paragraphs;
+          updatedParagraphs.load('text');
+          await context.sync();
+          console.log('🔍 Final validation after moves:');
+          console.log(`   Total paragraphs now: ${updatedParagraphs.items.length}`);
+          for (let i = 0; i < Math.min(updatedParagraphs.items.length, 8); i++) {
+            console.log(`   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`);
+          }
+        });
+      }
+      
+      // Apply ALL DELETE operations (move sources + regular deletes) in a separate Word.run context
+      const moveSourceDeletes = moveActions.map(move => ({
+        action: 'delete',
+        sequentialNumber: move.sequentialNumber,
+        instruction: `Delete original source of moved paragraph ${move.sequentialNumber}`,
+        reason: 'Remove source paragraph after move operation'
+      }));
+      const allDeleteActions = [...deleteActions, ...moveSourceDeletes];
+      
+      if (allDeleteActions.length > 0) {
+        console.log(`\n🗑️ Applying ${allDeleteActions.length} DELETE actions (${deleteActions.length} regular + ${moveSourceDeletes.length} move sources) in SINGLE Word.run context...`);
+        
+        // Sort ALL deletes in reverse order using Word IDs to avoid index shifting issues
+        allDeleteActions.sort((a, b) => {
           const aIndex = this.documentService.resolveSequentialToWordIndex(a.sequentialNumber, paragraphMapping);
           const bIndex = this.documentService.resolveSequentialToWordIndex(b.sequentialNumber, paragraphMapping);
           return bIndex - aIndex; // Descending order
         });
-        console.log('🔄 Sorted delete actions in reverse document order');
+        console.log('🔄 Sorted all delete actions (regular + move sources) in reverse document order');
         
         await Word.run(async (context) => {
           // Get FRESH paragraph references within this context
@@ -764,7 +869,7 @@ class AIDocumentReviewService {
           
           console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for deletion`);
           
-          for (const suggestion of deleteActions) {
+          for (const suggestion of allDeleteActions) {
             try {
               console.log(`   Deleting sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`);
               
@@ -797,27 +902,31 @@ class AIDocumentReviewService {
           
           // Single sync to commit all delete changes
           await context.sync();
-          console.log(`✅ Applied ${deleteActions.length} deletions and synced to document`);
+          console.log(`✅ Applied ${allDeleteActions.length} deletions and synced to document`);
           
-          // Check for and clean up any remaining empty paragraphs after deletion
-          console.log('🧹 Checking for empty paragraphs left after deletion...');
+          // Check for and clean up only consecutive empty paragraphs at document end
+          console.log('🧹 Checking for trailing empty paragraphs after deletion...');
           const postDeleteParagraphs = context.document.body.paragraphs;
           postDeleteParagraphs.load('text');
           await context.sync();
           
           let emptyParagraphsFound = 0;
+          // Only clean up empty paragraphs at the very end of the document
           for (let i = postDeleteParagraphs.items.length - 1; i >= 0; i--) {
             const para = postDeleteParagraphs.items[i];
             if (para.text.trim() === '') {
-              console.log(`🧹 Found empty paragraph at index ${i}, removing...`);
+              console.log(`🧹 Found trailing empty paragraph at index ${i}, removing...`);
               para.delete();
               emptyParagraphsFound++;
+            } else {
+              // Stop when we hit non-empty content - don't remove empty paragraphs in the middle
+              break;
             }
           }
           
           if (emptyParagraphsFound > 0) {
             await context.sync();
-            console.log(`✅ Cleaned up ${emptyParagraphsFound} empty paragraphs after deletion`);
+            console.log(`✅ Cleaned up ${emptyParagraphsFound} trailing empty paragraphs after deletion`);
           }
           
           // Final validation after deletions and cleanup
@@ -831,10 +940,6 @@ class AIDocumentReviewService {
             console.log(`   Paragraph ${i}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" (${text.length} chars)`);
           }
         });
-      }
-      
-      if (moveActions.length > 0) {
-        console.log(`\n📝 Note: ${moveActions.length} move actions not yet implemented in single-context mode`);
       }
       
     } catch (error) {

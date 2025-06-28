@@ -152,7 +152,29 @@ class SimpleFileLogger {
 ${JSON.stringify(data.suggestions, null, 2)}
 \`\`\`
 
-## Stage 2: Summary of Proposed Changes
+`;
+
+    // Add paragraph references section if available
+    if (data.paragraphReferences && data.paragraphReferences.length > 0) {
+      markdown += `## Paragraph Reference Snapshot
+
+The following immutable paragraph references were captured during the two-phase processing:
+
+`;
+      data.paragraphReferences.forEach((ref, index) => {
+        markdown += `### Paragraph ${index}
+- **Word API ID**: \`${ref.uniqueLocalId}\`
+- **Reference Hash**: \`${ref.contentHash}\` *(Legacy)*
+- **Word Count**: ${ref.wordCount}
+- **Is List Item**: ${ref.isListItem ? 'Yes' : 'No'}
+- **Is Empty**: ${ref.isEmpty ? 'Yes' : 'No'}
+- **Preview**: "${ref.text}"
+
+`;
+      });
+    }
+
+    markdown += `## Stage 2: Summary of Proposed Changes
 
 `;
 
@@ -161,9 +183,11 @@ ${JSON.stringify(data.suggestions, null, 2)}
     data.suggestions.forEach((suggestion) => {
       let targetParagraph;
       if (suggestion.action === 'insert') {
-        targetParagraph = suggestion.after_index;
+        // Use the new field name for insert actions
+        targetParagraph = suggestion.afterSequentialNumber || suggestion.after_index;
       } else {
-        targetParagraph = suggestion.index;
+        // Use the new field name for other actions
+        targetParagraph = suggestion.sequentialNumber || suggestion.index;
       }
       
       if (!paragraphChanges[targetParagraph]) {
@@ -175,9 +199,11 @@ ${JSON.stringify(data.suggestions, null, 2)}
     if (Object.keys(paragraphChanges).length === 0) {
       markdown += `*No changes proposed.*\n\n`;
     } else {
-      Object.keys(paragraphChanges).sort((a, b) => parseInt(a) - parseInt(b)).forEach(paragraphIndex => {
-        const changes = paragraphChanges[paragraphIndex];
-        markdown += `### Paragraph ${parseInt(paragraphIndex) + 1}\n`;
+      Object.keys(paragraphChanges).sort((a, b) => parseInt(a) - parseInt(b)).forEach(sequentialNumber => {
+        const changes = paragraphChanges[sequentialNumber];
+        
+        markdown += `### Sequential ${sequentialNumber}`;
+        markdown += `\n`;
         
         changes.forEach((change, idx) => {
           const actionLabel = {
@@ -255,6 +281,20 @@ ${JSON.stringify(data.suggestions, null, 2)}
       console.error('Error fetching logs:', error);
       return [];
     }
+  }
+
+  /**
+   * Record paragraph reference information for debugging
+   * @param {Array} referenceInfo - Array of reference information objects
+   */
+  recordParagraphReferences(referenceInfo) {
+    if (!this.analysisData) {
+      console.warn('No active session - call startSession first');
+      return;
+    }
+
+    this.analysisData.paragraphReferences = referenceInfo;
+    console.log(`📝 Recorded ${referenceInfo.length} paragraph references for session ${this.sessionId}`);
   }
 }
 

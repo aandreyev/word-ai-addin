@@ -156,3 +156,36 @@
   }
 ]
 ```
+
+## Response 7: Move Operations Test
+```json
+[
+  {
+    "action": "move",
+    "sequentialNumber": 3,
+    "toAfterSequentialNumber": 5,
+    "instruction": "Move the third paragraph to after the fifth paragraph for better logical flow.",
+    "reason": "The third paragraph's content relates more closely to the content after paragraph 5"
+  },
+  {
+    "action": "move", 
+    "sequentialNumber": 1,
+    "toAfterSequentialNumber": 2,
+    "instruction": "Move the opening paragraph to after the second paragraph.",
+    "reason": "The introduction works better after establishing context in paragraph 2"
+  },
+  {
+    "action": "modify",
+    "sequentialNumber": 4,
+    "instruction": "Update this paragraph to reflect the new document structure after moves.",
+    "newContent": "This fourth paragraph has been modified to acknowledge the restructured document flow after moving paragraphs to their optimal positions.",
+    "reason": "Ensures content remains coherent after structural changes"
+  },
+  {
+    "action": "delete",
+    "sequentialNumber": 6,
+    "instruction": "Remove this paragraph as it's no longer needed after restructuring.",
+    "reason": "This content becomes redundant after the document restructuring"
+  }
+]
+```

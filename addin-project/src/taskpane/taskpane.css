@@ -157,6 +157,22 @@ html, body {
     font-style: italic;
 }
 
+/* Suggestion preview */
+.suggestion-preview {
+    background: #f3f2f1;
+    border-left: 3px solid #0078d4;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-style: italic;
+    color: #323130;
+    border-radius: 0 4px 4px 0;
+}
+
+.suggestion-preview strong {
+    color: #0078d4;
+    font-weight: 600;
+}
+
 /* Sessions section */
 .sessions-section {
     flex: 1;
@@ -231,6 +247,57 @@ html, body {
     background-color: #f3f2f1;
     border-color: #8a8886;
 }
+
+/* Custom button styles */
+.primary-button {
+    background-color: #0078d4;
+    color: white;
+    border: 1px solid #0078d4;
+    padding: 12px 20px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin: 5px 0;
+}
+
+.primary-button:hover {
+    background-color: #106ebe;
+    border-color: #106ebe;
+}
+
+.primary-button:disabled {
+    background-color: #f3f2f1;
+    color: #a19f9d;
+    border-color: #edebe9;
+    cursor: not-allowed;
+}
+
+.secondary-button {
+    background-color: #ffffff;
+    color: #323130;
+    border: 1px solid #8a8886;
+    padding: 12px 20px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin: 5px 0;
+}
+
+.secondary-button:hover {
+    background-color: #f3f2f1;
+}
+
+.secondary-button:disabled {
+    background-color: #f3f2f1;
+    color: #a19f9d;
+    border-color: #edebe9;
+    cursor: not-allowed;
+}
+
 
 /* Compact spacing */
 ul {

@@ -11,6 +11,7 @@ import { AnalysisLogger } from '../services/analysis-logger.js';
 
 // Application state
 let currentSuggestions = [];
+let currentParagraphMapping = []; // Store the mapping for apply phase
 let isProcessing = false;
 
 // UI Elements (will be initialized after Office.onReady)
@@ -54,9 +55,7 @@ function updateLogViewer(logContent) {
     }
 }
 
-// Expose test functions for debugging
-window.testDownload = () => AnalysisLogger.testDownload();
-window.AnalysisLogger = AnalysisLogger;
+
 
 // Add a fallback in case Office.js doesn't load
 document.addEventListener('DOMContentLoaded', function() {
@@ -308,17 +307,22 @@ async function getParagraphCount() {
 }
 
 /**
- * Get AI analysis using our AI service
+ * Get AI analysis using our AI service with new mapping approach
  */
 async function getAIAnalysis() {
   try {
     console.log('🔍 getAIAnalysis: Starting...');
     console.log('🔍 AI service available:', !!window.aiDocumentReviewService);
     
-    // Use the global AI service instance
-    const suggestions = await window.aiDocumentReviewService.analyzeDocument();
-    console.log('🔍 getAIAnalysis: Received suggestions:', suggestions);
-    return suggestions;
+    // Use the global AI service instance - now returns both suggestions and mapping
+    const result = await window.aiDocumentReviewService.analyzeDocument();
+    console.log('🔍 getAIAnalysis: Received result:', result);
+    
+    // Store both suggestions and mapping for the apply phase
+    currentParagraphMapping = result.paragraphMapping;
+    console.log('🔍 getAIAnalysis: Stored paragraph mapping with', currentParagraphMapping.length, 'items');
+    
+    return result.suggestions;
   } catch (error) {
     console.error('❌ AI analysis failed:', error);
     throw new Error(error.message || 'AI analysis failed. Please try again.');
@@ -326,21 +330,36 @@ async function getAIAnalysis() {
 }
 
 /**
- * Apply AI suggestions to the document
+ * Apply AI suggestions to the document using the mapping approach
  */
 async function applySuggestions() {
   if (!currentSuggestions || currentSuggestions.length === 0) return;
+  if (!currentParagraphMapping || currentParagraphMapping.length === 0) {
+    console.error('❌ No paragraph mapping available for applying suggestions');
+    showError('No paragraph mapping available. Please analyze the document again.');
+    return;
+  }
   
   // 🔍 DEBUG: Show what suggestions are being applied
-  console.log('\n🚀 APPLYING SUGGESTIONS TO DOCUMENT:');
+  console.log('\n🚀 APPLYING SUGGESTIONS TO DOCUMENT WITH MAPPING:');
   console.log('=' .repeat(60));
   console.log(`📊 Total suggestions to apply: ${currentSuggestions.length}`);
+  console.log(`🗺️ Paragraph mapping items: ${currentParagraphMapping.length}`);
   
   currentSuggestions.forEach((suggestion, index) => {
     console.log(`\n🎯 SUGGESTION ${index + 1} TO APPLY:`);
     console.log(`   Action: ${suggestion.action.toUpperCase()}`);
-    console.log(`   Target: ${suggestion.action === 'insert' ? `After paragraph ${suggestion.after_index}` : `Paragraph ${suggestion.index}`}`);
+    
+    if (suggestion.action === 'insert') {
+      console.log(`   Target: After sequential paragraph ${suggestion.afterSequentialNumber}`);
+    } else {
+      console.log(`   Target: Sequential paragraph ${suggestion.sequentialNumber}`);
+    }
+    
     console.log(`   Instruction: "${suggestion.instruction}"`);
+    if (suggestion.newContent) {
+      console.log(`   New content: "${suggestion.newContent.substring(0, 100)}..."`);
+    }
     console.log('   Full suggestion JSON:', JSON.stringify(suggestion, null, 2));
   });
   console.log('=' .repeat(60));
@@ -349,8 +368,8 @@ async function applySuggestions() {
     isProcessing = true;
     showProgress("Applying suggestions...", 0);
     
-    // Use the AI service to apply suggestions
-    const appliedCount = await window.aiDocumentReviewService.applySuggestions(currentSuggestions);
+    // Use the AI service to apply suggestions with mapping
+    const appliedCount = await window.aiDocumentReviewService.applySuggestions(currentSuggestions, currentParagraphMapping);
     
     console.log(`\n✅ SUGGESTIONS APPLIED SUCCESSFULLY!`);
     console.log(`📈 Applied ${appliedCount} out of ${currentSuggestions.length} suggestions`);
@@ -407,12 +426,35 @@ function createSuggestionElement(suggestion, index) {
     "move": "↔️ Move"
   }[suggestion.action] || suggestion.action;
   
+  // Get the sequential number for display
+  let targetDisplay = '';
+  if (suggestion.action === 'insert') {
+    targetDisplay = `After paragraph ${suggestion.afterSequentialNumber}`;
+  } else {
+    targetDisplay = `Paragraph ${suggestion.sequentialNumber}`;
+  }
+  
+  // Build the content preview based on action type
+  let contentPreview = '';
+  if (suggestion.action === 'modify' && suggestion.newContent) {
+    contentPreview = `<div class="suggestion-preview"><strong>New text:</strong> "${suggestion.newContent}"</div>`;
+  } else if (suggestion.action === 'insert' && suggestion.newContent) {
+    contentPreview = `<div class="suggestion-preview"><strong>Insert:</strong> "${suggestion.newContent}"</div>`;
+  } else if (suggestion.action === 'modify' && suggestion.replacement_text) {
+    // Backward compatibility
+    contentPreview = `<div class="suggestion-preview"><strong>New text:</strong> "${suggestion.replacement_text}"</div>`;
+  } else if (suggestion.action === 'insert' && suggestion.new_content) {
+    // Backward compatibility
+    contentPreview = `<div class="suggestion-preview"><strong>Insert:</strong> "${suggestion.new_content}"</div>`;
+  }
+  
   item.innerHTML = `
     <div class="suggestion-header">
       <span class="suggestion-action">${actionText}</span>
-      <span class="suggestion-index">Paragraph ${(suggestion.index || suggestion.after_index || 0) + 1}</span>
+      <span class="suggestion-index">${targetDisplay}</span>
     </div>
-    <div class="suggestion-instruction">${suggestion.instruction || suggestion.content_prompt}</div>
+    <div class="suggestion-instruction">${suggestion.instruction}</div>
+    ${contentPreview}
     ${suggestion.reason ? `<div class="suggestion-reason">Reason: ${suggestion.reason}</div>` : ''}
   `;
   
@@ -609,5 +651,4 @@ function showSuccess(message) {
   }, 3000);
 }
 
-// Export functions for testing
-export { analyzeDocument, applySuggestions, clearResults };
+
