@@ -22,35 +22,79 @@ class AIService {
   }
 
   /**
-   * Get API key from environment variables
+   * Get API key from environment variables or localStorage
    * In production, this would be securely provided by the backend
    */
   getApiKey() {
-    // Check for API key in localStorage first
+    // First check for API key in localStorage
     const storedKey = localStorage.getItem('GEMINI_API_KEY');
     if (storedKey && storedKey !== 'GEMINI_API_KEY_PLACEHOLDER') {
+      console.log('🔑 Using Gemini API key from localStorage');
       return storedKey;
     }
     
-    // For testing purposes, return placeholder
+    // Check for environment variable (if available in browser context)
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+      console.log('🔑 Using Gemini API key from environment variable');
+      return process.env.GEMINI_API_KEY;
+    }
+    
+    // Check for global variable (can be set via Doppler or other means)
+    if (typeof window !== 'undefined' && window.GEMINI_API_KEY) {
+      console.log('🔑 Using Gemini API key from window variable');
+      return window.GEMINI_API_KEY;
+    }
+    
+    // No real API key found
+    console.warn('⚠️ No Gemini API key found - will use mock responses');
     return 'GEMINI_API_KEY_PLACEHOLDER';
   }
 
   /**
-   * Analyze document text and return editing suggestions
-   * @param {string} documentText - The full document text
+   * Set the Gemini API key for this session
+   * @param {string} apiKey - The Gemini API key
+   */
+  setApiKey(apiKey) {
+    if (apiKey && apiKey.trim()) {
+      localStorage.setItem('GEMINI_API_KEY', apiKey.trim());
+      this.apiKey = apiKey.trim();
+      console.log('✅ Gemini API key updated');
+    } else {
+      console.error('❌ Invalid API key provided');
+    }
+  }
+
+  /**
+   * Check if a valid API key is available
+   * @returns {boolean} - True if real API key is available
+   */
+  hasValidApiKey() {
+    const key = this.getApiKey();
+    return key && key !== 'GEMINI_API_KEY_PLACEHOLDER';
+  }
+
+  /**
+   * Analyze document using paragraph mapping and return editing suggestions
+   * @param {Array} paragraphMapping - Mapping of non-empty paragraphs with sequential numbers
    * @returns {Promise<Array>} - Array of editing suggestions
    */
-  async analyzeDocument(documentText) {
+  async analyzeDocumentFromMapping(paragraphMapping) {
     try {
       // 🔍 DEBUG: Start logging session (both loggers)
+      const documentText = paragraphMapping.map(m => m.content).join('\n\n');
       const sessionId = this.logger.startSession(documentText);
       const fileSessionId = this.fileLogger.startSession(documentText);
       console.log(`📝 Started analysis session: ${sessionId}`);
       console.log(`📁 Started file logging session: ${fileSessionId}`);
       
-      // Prepare the analysis prompt
-      const prompt = this.buildAnalysisPrompt(documentText);
+      // Record the paragraph mapping in the logger
+      console.log(`🎯 Analyzing ${paragraphMapping.length} non-empty paragraphs:`);
+      paragraphMapping.forEach(mapping => {
+        console.log(`   Sequential ${mapping.sequentialNumber}: [Word Index ${mapping.wordIndex}] "${mapping.content.substring(0, 50)}..."`);
+      });
+      
+      // Prepare the analysis prompt using mapping
+      const prompt = this.buildAnalysisPromptFromMapping(paragraphMapping);
       
       // 🔍 DEBUG: Show the prompt
       console.log('\n🤖 AI PROMPT:');
@@ -67,8 +111,8 @@ class AIService {
       console.log(response);
       console.log('-' .repeat(40));
       
-      // Parse the response into structured suggestions
-      const suggestions = this.parseAISuggestions(response);
+      // Parse the response into structured suggestions with mapping validation
+      const suggestions = this.parseAISuggestionsWithMapping(response, paragraphMapping);
       
       // 🔍 DEBUG: Record suggestions in both loggers
       this.logger.recordSuggestions(suggestions, response, prompt);
@@ -85,9 +129,9 @@ class AIService {
         console.log(`   🎯 Action: ${suggestion.action.toUpperCase()}`);
         
         if (suggestion.action === 'insert') {
-          console.log(`   📍 Insert After Paragraph: ${suggestion.after_index}`);
+          console.log(`   📍 Insert After Sequential: ${suggestion.afterSequentialNumber}`);
         } else {
-          console.log(`   📍 Target Paragraph: ${suggestion.index}`);
+          console.log(`   📍 Target Sequential: ${suggestion.sequentialNumber}`);
         }
         
         console.log(`   📝 Instruction: "${suggestion.instruction}"`);
@@ -121,14 +165,7 @@ class AIService {
         console.warn('Failed to save browser analysis session:', error);
       }
 
-      // Append the log data to the document
-      try {
-        const logContent = this.fileLogger.getSessionContent();
-        await this.documentService.appendLogData(logContent);
-        console.log(`📄 Appended analysis log to the document.`);
-      } catch (error) {
-        console.warn('Failed to append analysis log to document:', error);
-      }
+      // NOTE: Log data will be appended AFTER suggestions are applied to avoid corrupting paragraph mapping
 
       return suggestions;
     } catch (error) {
@@ -138,25 +175,40 @@ class AIService {
   }
 
   /**
-   * Build the analysis prompt for the AI
-   * @param {string} documentText - Document content
+   * Build the analysis prompt for the AI using paragraph mapping
+   * @param {Array} paragraphMapping - Mapping of non-empty paragraphs with sequential numbers
    * @returns {string} - Formatted prompt
    */
-  buildAnalysisPrompt(documentText) {
+  buildAnalysisPromptFromMapping(paragraphMapping) {
+    // Build paragraph reference using only sequential numbers and content
+    let paragraphReference = '';
+    paragraphMapping.forEach((mapping) => {
+      paragraphReference += `Paragraph ${mapping.sequentialNumber}: "${mapping.content}"\n`;
+    });
+
     return `
 You are an expert document editor. Analyze the following document and provide specific editing suggestions to improve clarity, readability, and effectiveness.
 
-DOCUMENT:
-${documentText}
+DOCUMENT PARAGRAPHS (only non-empty paragraphs shown):
+${paragraphReference}
 
 Please provide your response as a JSON array of editing actions. Each action should have this structure:
 {
   "action": "modify|insert|delete",
-  "index": (paragraph index for modify/delete, starting from 0),
-  "after_index": (paragraph index to insert after, for insert actions),
-  "instruction": "specific instruction for what to change",
+  "sequentialNumber": (paragraph sequential number for modify/delete, starting from 1),
+  "afterSequentialNumber": (paragraph sequential number to insert after, for insert actions),
+  "instruction": "brief description of what to change",
+  "newContent": "the exact new text to replace the paragraph with (for modify actions) or insert (for insert actions)",
   "reason": "explanation of why this change improves the document"
 }
+
+IMPORTANT NOTES:
+- Use "sequentialNumber" (not "index") to reference paragraphs for modify/delete actions
+- Use "afterSequentialNumber" (not "after_index") to specify insertion points
+- For "modify" actions: Provide the complete replacement text for the entire paragraph in "newContent"
+- For "insert" actions: Provide the complete new paragraph to insert in "newContent"
+- For "delete" actions: No newContent needed
+- Sequential numbers start from 1 and only reference non-empty paragraphs
 
 Focus on:
 1. Breaking down overly long sentences
@@ -175,37 +227,119 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
    * @returns {Promise<string>} - AI response
    */
   async callGeminiAPI(prompt) {
-    // For demo purposes, return mock data
-    // In production, this would make actual API calls through a secure backend
+    const apiKey = this.getApiKey();
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Return mock structured response
+    // Check if we have a real API key
+    if (!apiKey || apiKey === 'GEMINI_API_KEY_PLACEHOLDER') {
+      console.warn('⚠️ No Gemini API key found. Using fallback mock response.');
+      console.log('💡 To use real Gemini API, store your API key in localStorage:');
+      console.log('   localStorage.setItem("GEMINI_API_KEY", "your-actual-api-key")');
+      
+      // Return mock data as fallback
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return this.getMockResponse();
+    }
+
+    try {
+      console.log('🌐 Making real Gemini API call...');
+      
+      const url = `${this.baseUrl}/${this.modelName}:generateContent?key=${apiKey}`;
+      
+      const requestBody = {
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH", 
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Gemini API error:', response.status, errorData);
+        throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = await response.json();
+      
+      // Extract the text from Gemini's response format
+      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        console.log('✅ Received real Gemini API response');
+        return aiResponse;
+      } else {
+        console.error('❌ Unexpected Gemini API response format:', data);
+        throw new Error('Unexpected response format from Gemini API');
+      }
+
+    } catch (error) {
+      console.error('❌ Gemini API call failed:', error);
+      
+      // Fallback to mock response if API call fails
+      console.warn('⚠️ Falling back to mock response due to API error');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return this.getMockResponse();
+    }
+  }
+
+  /**
+   * Get mock response for testing/fallback using new format
+   * @returns {string} - Mock JSON response
+   */
+  getMockResponse() {
+    // Test Mixed Operations - Modify, Delete, and Insert to test comprehensive functionality
+    // Delete paragraph 2 BEFORE insertion to test complex ordering scenarios
     return `[
       {
         "action": "modify",
-        "index": 0,
-        "instruction": "Break this opening paragraph into two shorter sentences for better readability and impact.",
-        "reason": "Long opening sentences can lose reader attention immediately"
+        "sequentialNumber": 1,
+        "instruction": "Improve the opening paragraph with clearer language.",
+        "newContent": "This document serves as a comprehensive test case for AI-powered editing capabilities. I'm specifically evaluating how well the system handles multiple modification operations across different paragraphs.",
+        "reason": "More precise and professional opening statement"
+      },
+      {
+        "action": "delete",
+        "sequentialNumber": 2,
+        "instruction": "Remove the short second paragraph as it will be replaced by more comprehensive content.",
+        "reason": "Eliminates redundant content and tests deletion before insertion operations"
       },
       {
         "action": "insert",
-        "after_index": 1,
-        "instruction": "Add a transitional sentence that connects the introduction to the main points.",
-        "reason": "Improves document flow and helps readers follow the logical progression"
-      },
-      {
-        "action": "modify",
-        "index": 2,
-        "instruction": "Replace passive voice with active voice to make the writing more direct and engaging.",
-        "reason": "Active voice is more engaging and easier to understand"
-      },
-      {
-        "action": "modify",
-        "index": 3,
-        "instruction": "Simplify complex sentence structure and remove unnecessary jargon.",
-        "reason": "Simpler language increases accessibility and comprehension"
+        "afterSequentialNumber": 3,
+        "instruction": "Add a new comprehensive paragraph after the third paragraph.",
+        "newContent": "This is a completely new paragraph that has been inserted using the AI add-in. It demonstrates the system's ability to create entirely new paragraphs at specific locations within the document, replacing the deleted content with more substantial material.",
+        "reason": "Improves document flow and tests paragraph insertion after deletion"
       }
     ]`;
   }
@@ -244,9 +378,22 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
     }
 
     return suggestions.filter(suggestion => {
-      return suggestion.action && 
-             suggestion.instruction && 
-             (suggestion.index !== undefined || suggestion.after_index !== undefined);
+      const hasValidAction = suggestion.action && 
+                            ['modify', 'insert', 'delete', 'move'].includes(suggestion.action);
+      const hasValidInstruction = suggestion.instruction;
+      const hasValidIndex = suggestion.index !== undefined || suggestion.after_index !== undefined;
+      
+      // For modify actions, check if replacement_text is provided
+      if (suggestion.action === 'modify' && !suggestion.replacement_text) {
+        console.warn('Modify suggestion missing replacement_text:', suggestion);
+      }
+      
+      // For insert actions, check if new_content is provided
+      if (suggestion.action === 'insert' && !suggestion.new_content) {
+        console.warn('Insert suggestion missing new_content:', suggestion);
+      }
+      
+      return hasValidAction && hasValidInstruction && hasValidIndex;
     }).slice(0, 5); // Limit to 5 suggestions
   }
 
@@ -260,13 +407,118 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
         action: "modify",
         index: 0,
         instruction: "Review the opening paragraph for clarity and impact.",
+        replacement_text: "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
         reason: "Strong openings engage readers more effectively"
       },
       {
         action: "insert",
         after_index: 0,
         instruction: "Consider adding a topic sentence to introduce the main theme.",
+        new_content: "Let's explore how artificial intelligence can enhance your writing through intelligent suggestions.",
         reason: "Clear topic sentences help readers understand document structure"
+      }
+    ];
+  }
+
+  /**
+   * Parse AI response into structured suggestions with mapping validation
+   * @param {string} response - Raw AI response
+   * @param {Array} paragraphMapping - Paragraph mapping for validation
+   * @returns {Array} - Parsed and validated suggestions
+   */
+  parseAISuggestionsWithMapping(response, paragraphMapping) {
+    try {
+      // Clean up the response (remove any markdown or extra text)
+      const cleanResponse = response.trim().replace(/```json|```/g, '');
+      
+      // Parse JSON
+      const suggestions = JSON.parse(cleanResponse);
+      
+      // Validate and filter suggestions with mapping
+      return this.validateSuggestionsWithMapping(suggestions, paragraphMapping);
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      
+      // Return fallback suggestions if parsing fails
+      return this.getFallbackSuggestionsWithMapping(paragraphMapping);
+    }
+  }
+
+  /**
+   * Validate suggestions structure with mapping
+   * @param {Array} suggestions - Raw suggestions from AI
+   * @param {Array} paragraphMapping - Paragraph mapping for validation
+   * @returns {Array} - Validated suggestions
+   */
+  validateSuggestionsWithMapping(suggestions, paragraphMapping) {
+    if (!Array.isArray(suggestions)) {
+      return this.getFallbackSuggestionsWithMapping(paragraphMapping);
+    }
+
+    const maxSequentialNumber = Math.max(...paragraphMapping.map(m => m.sequentialNumber));
+    console.log(`🔍 Validating suggestions against mapping (max sequential: ${maxSequentialNumber})`);
+
+    return suggestions.filter(suggestion => {
+      const hasValidAction = suggestion.action && 
+                            ['modify', 'insert', 'delete', 'move'].includes(suggestion.action);
+      const hasValidInstruction = suggestion.instruction;
+      
+      let hasValidReference = false;
+      let sequentialNumber = null;
+      
+      // Validate sequential number references
+      if (suggestion.action === 'insert') {
+        sequentialNumber = suggestion.afterSequentialNumber;
+        hasValidReference = sequentialNumber !== undefined && 
+                           sequentialNumber >= 1 && 
+                           sequentialNumber <= maxSequentialNumber;
+        if (!hasValidReference) {
+          console.warn(`❌ Invalid afterSequentialNumber ${sequentialNumber} for insert action (max: ${maxSequentialNumber})`);
+        }
+      } else {
+        sequentialNumber = suggestion.sequentialNumber;
+        hasValidReference = sequentialNumber !== undefined && 
+                           sequentialNumber >= 1 && 
+                           sequentialNumber <= maxSequentialNumber;
+        if (!hasValidReference) {
+          console.warn(`❌ Invalid sequentialNumber ${sequentialNumber} for ${suggestion.action} action (max: ${maxSequentialNumber})`);
+        }
+      }
+      
+      // For modify/insert actions, check if newContent is provided
+      if ((suggestion.action === 'modify' || suggestion.action === 'insert') && !suggestion.newContent) {
+        console.warn(`❌ ${suggestion.action} suggestion missing newContent:`, suggestion);
+        return false;
+      }
+      
+      const isValid = hasValidAction && hasValidInstruction && hasValidReference;
+      if (isValid) {
+        console.log(`✅ Valid ${suggestion.action} suggestion for sequential ${sequentialNumber}`);
+      }
+      
+      return isValid;
+    }).slice(0, 5); // Limit to 5 suggestions
+  }
+
+  /**
+   * Get fallback suggestions using mapping if AI parsing fails
+   * @param {Array} paragraphMapping - Paragraph mapping
+   * @returns {Array} - Default suggestions
+   */
+  getFallbackSuggestionsWithMapping(paragraphMapping) {
+    if (paragraphMapping.length === 0) {
+      return [];
+    }
+    
+    const firstSequential = paragraphMapping[0].sequentialNumber;
+    
+    return [
+      {
+        action: "modify",
+        sequentialNumber: firstSequential,
+        instruction: "Review the opening paragraph for clarity and impact.",
+        newContent: "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
+        reason: "Strong openings engage readers more effectively"
       }
     ];
   }
@@ -285,6 +537,7 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
       return false;
     }
   }
+
 }
 
 /**
@@ -298,24 +551,36 @@ class AIDocumentReviewService {
   }
 
   /**
-   * Analyze the current document and return suggestions
-   * @returns {Promise<Array>} - Array of suggestions
+   * Analyze the current document and return suggestions using the new mapping approach
+   * @returns {Promise<{suggestions: Array, paragraphMapping: Array}>} - Array of suggestions and the paragraph mapping
    */
   async analyzeDocument() {
-    // Extract document content
-    const documentText = await this.documentService.extractDocumentText();
+    // Create paragraph snapshot and mapping
+    const snapshotResult = await this.documentService.createParagraphSnapshot();
+    const paragraphMapping = snapshotResult.paragraphMapping;
     
     // Validate document
-    const wordCount = await this.documentService.getWordCount();
-    if (wordCount <= 0 || wordCount > 10000) {
-      throw new Error(`Document size not suitable for processing (${wordCount} words). Please use documents between 1 and 10,000 words.`);
+    const totalParagraphs = snapshotResult.paragraphs.length;
+    const nonEmptyParagraphs = paragraphMapping.length;
+    
+    if (nonEmptyParagraphs === 0) {
+      throw new Error('Document has no content to analyze. Please add some text to the document.');
+    }
+    
+    if (nonEmptyParagraphs > 100) { // Reasonable limit for PoC
+      throw new Error(`Document has too many paragraphs (${nonEmptyParagraphs}). Please use documents with fewer than 100 paragraphs.`);
     }
 
-    // Get AI analysis
-    const suggestions = await this.aiService.analyzeDocument(documentText);
+    console.log(`📊 Document analysis: ${totalParagraphs} total paragraphs, ${nonEmptyParagraphs} non-empty paragraphs`);
+
+    // Get AI analysis using the mapping
+    const suggestions = await this.aiService.analyzeDocumentFromMapping(paragraphMapping);
     
-    // Validate against current document structure (simplified)
-    return suggestions.slice(0, 5); // Limit to 5 suggestions for safety
+    // Return both suggestions and mapping for later use
+    return {
+      suggestions: suggestions.slice(0, 5), // Limit to 5 suggestions for safety
+      paragraphMapping: paragraphMapping
+    };
   }
 
   /**
@@ -327,36 +592,256 @@ class AIDocumentReviewService {
   }
 
   /**
-   * Apply multiple suggestions to the document
+   * Apply multiple suggestions to the document using the two-phase approach with mapping
+   * Phase 1: Create immutable paragraph snapshot (already done during analysis)
+   * Phase 2: Execute in prescribed order using mapping to resolve sequential numbers
    * @param {Array} suggestions - Suggestions to apply
+   * @param {Array} paragraphMapping - The paragraph mapping from analysis
    * @returns {Promise<number>} - Number of successfully applied suggestions
    */
-  async applySuggestions(suggestions) {
+  async applySuggestions(suggestions, paragraphMapping) {
     let appliedCount = 0;
     
-    console.log(`\n🚀 APPLYING ${suggestions.length} SUGGESTIONS TO DOCUMENT:`);
+    console.log(`\n🚀 STARTING MAPPING-BASED APPLICATION OF ${suggestions.length} SUGGESTIONS:`);
     console.log('=' .repeat(60));
     
-    // Apply each suggestion to the actual document
-    for (let i = 0; i < suggestions.length; i++) {
-      const suggestion = suggestions[i];
-      try {
-        console.log(`🔧 Applying suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
+    try {
+      // Apply all modifications in a SINGLE Word.run context using fresh paragraph references
+      const modifyActions = suggestions.filter(s => s.action === 'modify');
+      
+      if (modifyActions.length > 0) {
+        console.log('\n🔧 Applying ALL MODIFY actions in SINGLE Word.run context...');
         
-        // Use the document service to apply the suggestion
-        const success = await this.documentService.applySuggestion(suggestion);
-        
-        if (success) {
-          console.log(`✅ Applied suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
-          appliedCount++;
-        } else {
-          console.log(`❌ Failed to apply suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
-        }
-      } catch (error) {
-        console.error('❌ Failed to apply suggestion:', suggestion, error);
+        await Word.run(async (context) => {
+          // Get FRESH paragraph references within this context
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text');
+          await context.sync();
+          
+          console.log(`� Fresh context has ${paragraphs.items.length} paragraphs available`);
+          
+          for (const suggestion of modifyActions) {
+            try {
+              console.log(`   Modifying sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`);
+              
+              // Resolve sequential number to Word index using mapping
+              const wordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              if (wordIndex === null) {
+                console.error(`   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index`);
+                continue;
+              }
+              
+              // Use fresh paragraph reference from current context
+              if (wordIndex >= 0 && wordIndex < paragraphs.items.length) {
+                const paragraph = paragraphs.items[wordIndex];
+                
+                console.log(`🔍 Using fresh paragraph reference ${wordIndex} in current context...`);
+                console.log(`📋 Current text: "${paragraph.text.substring(0, 50)}..."`);
+                
+                if (suggestion.newContent) {
+                  console.log(`🔄 Replacing paragraph ${wordIndex} content...`);
+                  
+                  // Use a more reliable approach for replacing paragraph content
+                  // Get the paragraph's range and replace its content
+                  const range = paragraph.getRange();
+                  range.insertText(suggestion.newContent, Word.InsertLocation.replace);
+                  
+                  console.log(`✅ Modified paragraph ${wordIndex} with new content`);
+                  appliedCount++;
+                } else {
+                  console.warn(`⚠️ No newContent provided for sequential ${suggestion.sequentialNumber}`);
+                }
+              } else {
+                console.error(`❌ Invalid word index: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+              }
+            } catch (error) {
+              console.error(`   ❌ Failed to modify sequential ${suggestion.sequentialNumber}:`, error);
+            }
+          }
+          
+          // Single sync to commit all changes
+          await context.sync();
+          console.log(`✅ Applied ${appliedCount} modifications and synced to document`);
+          
+          // Validate changes were applied
+          paragraphs.load('text');
+          await context.sync();
+          console.log('🔍 Final validation of changes:');
+          for (let i = 0; i < Math.min(paragraphs.items.length, 5); i++) {
+            console.log(`   Paragraph ${i}: "${paragraphs.items[i].text.substring(0, 50)}..."`);
+          }
+        });
       }
+      
+      // Handle other action types (insert, delete, move) if any
+      const insertActions = suggestions.filter(s => s.action === 'insert');
+      const deleteActions = suggestions.filter(s => s.action === 'delete');
+      const moveActions = suggestions.filter(s => s.action === 'move');
+      
+      // Apply INSERT operations in a separate Word.run context
+      if (insertActions.length > 0) {
+        console.log(`\n📝 Applying ${insertActions.length} INSERT actions in SINGLE Word.run context...`);
+        
+        await Word.run(async (context) => {
+          // Get FRESH paragraph references within this context
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text');
+          await context.sync();
+          
+          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for insertion`);
+          
+          for (const suggestion of insertActions) {
+            try {
+              console.log(`   Inserting after sequential ${suggestion.afterSequentialNumber}: "${suggestion.instruction}"`);
+              
+              // Resolve afterSequentialNumber to Word index using mapping
+              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.afterSequentialNumber, paragraphMapping);
+              if (afterWordIndex === null) {
+                console.error(`   ❌ Could not resolve afterSequentialNumber ${suggestion.afterSequentialNumber} to Word index`);
+                continue;
+              }
+              
+              // Use fresh paragraph reference from current context
+              if (afterWordIndex >= 0 && afterWordIndex < paragraphs.items.length) {
+                const afterParagraph = paragraphs.items[afterWordIndex];
+                
+                console.log(`🔍 Inserting new paragraph after Word index ${afterWordIndex}...`);
+                console.log(`📋 After paragraph text: "${afterParagraph.text.substring(0, 50)}..."`);
+                
+                if (suggestion.newContent) {
+                  console.log(`📝 Creating new paragraph with content...`);
+                  
+                  // Insert new paragraph AFTER the specified paragraph
+                  // This creates a completely new paragraph, not appending to existing one
+                  afterParagraph.insertParagraph(suggestion.newContent, Word.InsertLocation.after);
+                  
+                  console.log(`✅ Inserted new paragraph after Word index ${afterWordIndex}`);
+                  appliedCount++;
+                } else {
+                  console.warn(`⚠️ No newContent provided for insert after sequential ${suggestion.afterSequentialNumber}`);
+                }
+              } else {
+                console.error(`❌ Invalid after word index: ${afterWordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+              }
+            } catch (error) {
+              console.error(`   ❌ Failed to insert after sequential ${suggestion.afterSequentialNumber}:`, error);
+            }
+          }
+          
+          // Single sync to commit all insert changes
+          await context.sync();
+          console.log(`✅ Applied ${insertActions.length} insertions and synced to document`);
+          
+          // Validate insertions were applied
+          const updatedParagraphs = context.document.body.paragraphs;
+          updatedParagraphs.load('text');
+          await context.sync();
+          console.log('🔍 Final validation after insertions:');
+          console.log(`   Total paragraphs now: ${updatedParagraphs.items.length}`);
+          for (let i = 0; i < Math.min(updatedParagraphs.items.length, 8); i++) {
+            console.log(`   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`);
+          }
+        });
+      }
+      
+      // Apply DELETE operations in a separate Word.run context
+      if (deleteActions.length > 0) {
+        console.log(`\n🗑️ Applying ${deleteActions.length} DELETE actions in SINGLE Word.run context...`);
+        
+        // Sort deletes in reverse order to avoid index shifting issues
+        deleteActions.sort((a, b) => {
+          const aIndex = this.documentService.resolveSequentialToWordIndex(a.sequentialNumber, paragraphMapping);
+          const bIndex = this.documentService.resolveSequentialToWordIndex(b.sequentialNumber, paragraphMapping);
+          return bIndex - aIndex; // Descending order
+        });
+        console.log('🔄 Sorted delete actions in reverse document order');
+        
+        await Word.run(async (context) => {
+          // Get FRESH paragraph references within this context
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text');
+          await context.sync();
+          
+          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for deletion`);
+          
+          for (const suggestion of deleteActions) {
+            try {
+              console.log(`   Deleting sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`);
+              
+              // Resolve sequential number to Word index using mapping
+              const wordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              if (wordIndex === null) {
+                console.error(`   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index for deletion`);
+                continue;
+              }
+              
+              // Use fresh paragraph reference from current context
+              if (wordIndex >= 0 && wordIndex < paragraphs.items.length) {
+                const paragraphToDelete = paragraphs.items[wordIndex];
+                
+                console.log(`🔍 Deleting paragraph at Word index ${wordIndex}...`);
+                console.log(`� Paragraph to delete: "${paragraphToDelete.text.substring(0, 50)}..."`);
+                
+                // Delete the entire paragraph including marker
+                paragraphToDelete.getRange().delete();
+                
+                console.log(`✅ Deleted paragraph at Word index ${wordIndex}`);
+                appliedCount++;
+              } else {
+                console.error(`❌ Invalid word index for deletion: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+              }
+            } catch (error) {
+              console.error(`   ❌ Failed to delete sequential ${suggestion.sequentialNumber}:`, error);
+            }
+          }
+          
+          // Single sync to commit all delete changes
+          await context.sync();
+          console.log(`✅ Applied ${deleteActions.length} deletions and synced to document`);
+          
+          // Check for and clean up any remaining empty paragraphs after deletion
+          console.log('🧹 Checking for empty paragraphs left after deletion...');
+          const postDeleteParagraphs = context.document.body.paragraphs;
+          postDeleteParagraphs.load('text');
+          await context.sync();
+          
+          let emptyParagraphsFound = 0;
+          for (let i = postDeleteParagraphs.items.length - 1; i >= 0; i--) {
+            const para = postDeleteParagraphs.items[i];
+            if (para.text.trim() === '') {
+              console.log(`🧹 Found empty paragraph at index ${i}, removing...`);
+              para.delete();
+              emptyParagraphsFound++;
+            }
+          }
+          
+          if (emptyParagraphsFound > 0) {
+            await context.sync();
+            console.log(`✅ Cleaned up ${emptyParagraphsFound} empty paragraphs after deletion`);
+          }
+          
+          // Final validation after deletions and cleanup
+          const finalParagraphs = context.document.body.paragraphs;
+          finalParagraphs.load('text');
+          await context.sync();
+          console.log('🔍 Final validation after deletions and cleanup:');
+          console.log(`   Total paragraphs now: ${finalParagraphs.items.length}`);
+          for (let i = 0; i < Math.min(finalParagraphs.items.length, 8); i++) {
+            const text = finalParagraphs.items[i].text.trim();
+            console.log(`   Paragraph ${i}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" (${text.length} chars)`);
+          }
+        });
+      }
+      
+      if (moveActions.length > 0) {
+        console.log(`\n📝 Note: ${moveActions.length} move actions not yet implemented in single-context mode`);
+      }
+      
+    } catch (error) {
+      console.error('🚨 CRITICAL ERROR in mapping-based application:', error);
+      throw error;
     }
-    
+
     // Record application results in both loggers
     if (this.aiService.logger) {
       this.aiService.logger.markApplied(appliedCount);
@@ -371,7 +856,16 @@ class AIDocumentReviewService {
       }
     }
     
-    console.log(`\n🎯 APPLICATION COMPLETE: ${appliedCount}/${suggestions.length} suggestions applied`);
+    // Append the log data to the document AFTER suggestions are applied
+    try {
+      const logContent = this.aiService.fileLogger.getSessionContent();
+      await this.documentService.appendLogData(logContent);
+      console.log(`📄 Appended analysis log to the document after applying suggestions.`);
+    } catch (error) {
+      console.warn('Failed to append analysis log to document:', error);
+    }
+    
+    console.log(`\n🎯 MAPPING-BASED APPLICATION COMPLETE: ${appliedCount}/${suggestions.length} suggestions applied`);
     console.log('=' .repeat(60));
     
     return appliedCount;
