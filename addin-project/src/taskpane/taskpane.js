@@ -7,6 +7,7 @@
 
 // Import our AI service
 import '../services/ai-service-browser.js';
+import { AnalysisLogger } from '../services/analysis-logger.js';
 
 // Application state
 let currentSuggestions = [];
@@ -15,20 +16,114 @@ let isProcessing = false;
 // UI Elements (will be initialized after Office.onReady)
 let elements = {};
 
+// Add event listener for tab switching
+document.addEventListener('DOMContentLoaded', () => {
+    const tabContainer = document.querySelector('.tab-container');
+    if (tabContainer) {
+        tabContainer.addEventListener('click', (event) => {
+            if (event.target.matches('.tab-button')) {
+                const tabId = event.target.getAttribute('data-tab');
+                switchTab(tabId);
+            }
+        });
+    }
+});
+
+/**
+ * Switch between the Analyzer and Log Viewer tabs
+ * @param {string} tabId - The ID of the tab to activate
+ */
+function switchTab(tabId) {
+    // Deactivate all tabs and buttons
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+
+    // Activate the selected tab and button
+    document.getElementById(tabId).classList.add('active');
+    document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
+}
+
+/**
+ * Updates the log viewer with the provided content.
+ * @param {string} logContent The content to display in the log viewer.
+ */
+function updateLogViewer(logContent) {
+    const logContentArea = document.getElementById('log-content');
+    if (logContentArea) {
+        logContentArea.textContent = logContent;
+    }
+}
+
+// Expose test functions for debugging
+window.testDownload = () => AnalysisLogger.testDownload();
+window.AnalysisLogger = AnalysisLogger;
+
+// Add a fallback in case Office.js doesn't load
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM Content Loaded');
+  
+  // Set a timeout to show the app even if Office.onReady doesn't fire
+  setTimeout(() => {
+    const sideloadMsg = document.getElementById("sideload-msg");
+    const appBody = document.getElementById("app-body");
+    
+    if (sideloadMsg && sideloadMsg.style.display !== "none") {
+      console.log('Office.onReady timeout - showing app anyway');
+      if (sideloadMsg) sideloadMsg.style.display = "none";
+      if (appBody) appBody.style.display = "block";
+      
+      try {
+        initializeElements();
+        setupEventListeners();
+        updateDocumentInfo();
+      } catch (error) {
+        console.error('Error in fallback initialization:', error);
+      }
+    }
+  }, 3000); // Wait 3 seconds for Office.onReady
+});
+
 Office.onReady((info) => {
+  console.log('Office.onReady called', info);
+  
   if (info.host === Office.HostType.Word) {
-    // Hide sideload message and show main app
-    document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "flex";
+    console.log('Word host detected, initializing app...');
     
-    // Initialize UI elements
-    initializeElements();
-    
-    // Set up event listeners
-    setupEventListeners();
-    
-    // Initialize document info
-    updateDocumentInfo();
+    try {
+      // Hide sideload message and show main app
+      const sideloadMsg = document.getElementById("sideload-msg");
+      const appBody = document.getElementById("app-body");
+      
+      console.log('sideloadMsg element:', sideloadMsg);
+      console.log('appBody element:', appBody);
+      
+      if (sideloadMsg) {
+        sideloadMsg.style.display = "none";
+        console.log('Sideload message hidden');
+      }
+      
+      if (appBody) {
+        appBody.style.display = "block";
+        console.log('App body shown');
+      }
+      
+      // Initialize UI elements
+      initializeElements();
+      console.log('Elements initialized');
+      
+      // Set up event listeners
+      setupEventListeners();
+      console.log('Event listeners set up');
+      
+      // Initialize document info
+      updateDocumentInfo();
+      console.log('Document info updated');
+      
+    } catch (error) {
+      console.error('Error during initialization:', error);
+    }
+  } else {
+    console.log('Not in Word host, host type:', info.host);
   }
 });
 
@@ -36,38 +131,83 @@ Office.onReady((info) => {
  * Initialize UI element references
  */
 function initializeElements() {
+  console.log('Initializing UI elements...');
+  
   elements = {
-    // Buttons
-    analyzeBtn: document.getElementById("analyze-document"),
-    applySuggestionsBtn: document.getElementById("apply-suggestions"),
-    clearResultsBtn: document.getElementById("clear-results"),
-    
-    // Status elements
-    docStatus: document.getElementById("doc-status"),
-    wordCount: document.getElementById("word-count"),
-    
-    // Progress elements
-    progressSection: document.getElementById("progress-section"),
-    progressText: document.getElementById("progress-text"),
-    progressBar: document.getElementById("progress-bar"),
-    
-    // Results elements
+    // Main buttons
+    analyzeBtn: document.getElementById("analyze-button"),
+    applySuggestionsBtn: document.getElementById("apply-suggestions-button"),
+    clearResultsBtn: document.getElementById("clear-results-button"),
+    clearHistoryBtn: document.getElementById("clear-history-button"),
+    downloadHistoryBtn: document.getElementById("download-history-button"),
+
+    // Status & Results
+    statusContainer: document.getElementById("status-container"),
     resultsSection: document.getElementById("results-section"),
     suggestionsList: document.getElementById("suggestions-list"),
-    
-    // Error elements
+    historyContainer: document.getElementById("history-container"),
+
+    // Progress & Error handling
+    progressSection: document.getElementById("progress-section"),
+    progressBar: document.getElementById("progress-bar"),
+    progressText: document.getElementById("progress-text"),
     errorSection: document.getElementById("error-section"),
-    errorMessage: document.getElementById("error-message")
+    errorMessage: document.getElementById("error-message"),
+
+    // Document status
+    docStatus: document.getElementById("doc-status"),
+
+    // Log Viewer
+    logContent: document.getElementById('log-content'),
   };
+  
+  // Verify all elements were found
+  const missingElements = [];
+  for (const [key, element] of Object.entries(elements)) {
+    if (!element) {
+      missingElements.push(key);
+    }
+  }
+  
+  if (missingElements.length > 0) {
+    console.warn('Missing elements:', missingElements);
+  } else {
+    console.log('All UI elements found successfully');
+  }
 }
 
 /**
  * Set up event listeners for UI interactions
  */
 function setupEventListeners() {
-  elements.analyzeBtn.onclick = analyzeDocument;
-  elements.applySuggestionsBtn.onclick = applySuggestions;
-  elements.clearResultsBtn.onclick = clearResults;
+  if (elements.analyzeBtn) {
+    elements.analyzeBtn.onclick = analyzeDocument;
+  }
+  if (elements.applySuggestionsBtn) {
+    elements.applySuggestionsBtn.onclick = applySuggestions;
+  }
+  if (elements.clearResultsBtn) {
+    elements.clearResultsBtn.onclick = clearResults;
+  }
+  if (elements.clearHistoryBtn) {
+    elements.clearHistoryBtn.onclick = clearResults;
+  }
+  if (elements.downloadHistoryBtn) {
+    elements.downloadHistoryBtn.onclick = downloadAllSessions;
+  }
+}
+
+/**
+ * Show status message to user
+ * @param {string} message - Status message
+ */
+function showStatus(message) {
+  if (elements.statusContainer) {
+    elements.statusContainer.style.display = "block";
+    elements.statusContainer.textContent = message;
+    elements.statusContainer.style.color = "#0078d4";
+  }
+  console.log("Status:", message);
 }
 
 /**
@@ -75,27 +215,16 @@ function setupEventListeners() {
  */
 async function updateDocumentInfo() {
   try {
-    // Use the AI service to get document info
-    const docInfo = await window.aiDocumentReviewService.getDocumentInfo();
-    
-    elements.wordCount.textContent = docInfo.wordCount > 0 ? docInfo.wordCount.toLocaleString() : "0";
-    
-    if (docInfo.wordCount === 0) {
-      elements.docStatus.textContent = "Document is empty";
-      elements.analyzeBtn.style.opacity = "0.6";
-      elements.analyzeBtn.style.pointerEvents = "none";
-    } else if (!docInfo.isValid) {
-      elements.docStatus.textContent = `Document too large (${docInfo.wordCount} words)`;
-      elements.analyzeBtn.style.opacity = "0.6";
-      elements.analyzeBtn.style.pointerEvents = "none";
+    // Use the AI service to get document info if available
+    if (window.aiDocumentReviewService) {
+      const docInfo = await window.aiDocumentReviewService.getDocumentInfo();
+      showStatus(`Document ready: ${docInfo.wordCount} words`);
     } else {
-      elements.docStatus.textContent = "Ready for analysis";
-      elements.analyzeBtn.style.opacity = "1";
-      elements.analyzeBtn.style.pointerEvents = "auto";
+      showStatus("AI service not yet available");
     }
   } catch (error) {
     console.error("Error updating document info:", error);
-    showError("Failed to read document information");
+    showStatus("Failed to read document information");
   }
 }
 
@@ -105,39 +234,50 @@ async function updateDocumentInfo() {
 async function analyzeDocument() {
   if (isProcessing) return;
   
+  console.log('🚀 ANALYZE DOCUMENT STARTED');
+  
   try {
     isProcessing = true;
-    showProgress("Analyzing document...", 0);
     hideError();
-    hideResults();
+    showStatus("Analyzing document...");
     
-    // Extract document text
-    showProgress("Reading document content...", 25);
-    
-    // Get AI analysis directly (document reading is handled by the service)
-    showProgress("Getting AI analysis...", 50);
-    const suggestions = await getAIAnalysis();
-    
-    showProgress("Processing suggestions...", 75);
-    
-    if (!suggestions || suggestions.length === 0) {
-      throw new Error("No suggestions were generated. The document may already be well-written.");
+    // Check if AI service is available
+    if (!window.aiDocumentReviewService) {
+      throw new Error("AI service not available. Please refresh the add-in.");
     }
     
-    // Store and display results
-    currentSuggestions = suggestions;
-    showProgress("Complete!", 100);
+    console.log('✅ AI service is available');
     
-    setTimeout(() => {
-      hideProgress();
-      displaySuggestions(suggestions);
-      showApplyButton();
-    }, 500);
+    showStatus("Getting AI analysis...");
+    console.log('📞 Calling AI service...');
+    const suggestions = await getAIAnalysis();
+    console.log('📋 Received suggestions:', suggestions);
+
+    // Update the log viewer with the latest analysis log
+    if (window.aiDocumentReviewService) {
+        const logContent = window.aiDocumentReviewService.getLatestLog();
+        updateLogViewer(logContent);
+    }
+    
+    showStatus(`Analysis complete! Found ${suggestions.length} suggestions.`);
+    
+    if (!suggestions || suggestions.length === 0) {
+      showStatus("No suggestions generated. The document may already be well-written.");
+      return;
+    }
+    
+    // Store suggestions for the apply step
+    currentSuggestions = suggestions;
+    
+    // Display the suggestions in the UI
+    displaySuggestions(suggestions);
+    
+    // Show the Apply and Clear buttons
+    showApplyButton();
     
   } catch (error) {
-    console.error("Analysis failed:", error);
-    hideProgress();
-    showError(error.message || "Document analysis failed. Please try again.");
+    console.error("❌ Analysis failed:", error);
+    showError("Analysis failed: " + (error.message || "Please try again."));
   } finally {
     isProcessing = false;
   }
@@ -170,13 +310,17 @@ async function getParagraphCount() {
 /**
  * Get AI analysis using our AI service
  */
-async function getAIAnalysis(documentText) {
+async function getAIAnalysis() {
   try {
+    console.log('🔍 getAIAnalysis: Starting...');
+    console.log('🔍 AI service available:', !!window.aiDocumentReviewService);
+    
     // Use the global AI service instance
     const suggestions = await window.aiDocumentReviewService.analyzeDocument();
+    console.log('🔍 getAIAnalysis: Received suggestions:', suggestions);
     return suggestions;
   } catch (error) {
-    console.error('AI analysis failed:', error);
+    console.error('❌ AI analysis failed:', error);
     throw new Error(error.message || 'AI analysis failed. Please try again.');
   }
 }
@@ -232,6 +376,11 @@ async function applySuggestions() {
  * Display analysis results in the UI
  */
 function displaySuggestions(suggestions) {
+  if (!elements.suggestionsList) {
+    console.warn('Suggestions list element not found');
+    return;
+  }
+  
   elements.suggestionsList.innerHTML = "";
   
   suggestions.forEach((suggestion, index) => {
@@ -239,7 +388,9 @@ function displaySuggestions(suggestions) {
     elements.suggestionsList.appendChild(item);
   });
   
-  elements.resultsSection.style.display = "block";
+  if (elements.resultsSection) {
+    elements.resultsSection.style.display = "block";
+  }
 }
 
 /**
@@ -272,8 +423,12 @@ function createSuggestionElement(suggestion, index) {
  * Show apply button and clear button
  */
 function showApplyButton() {
-  elements.applySuggestionsBtn.style.display = "block";
-  elements.clearResultsBtn.style.display = "block";
+  if (elements.applySuggestionsBtn) {
+    elements.applySuggestionsBtn.style.display = "block";
+  }
+  if (elements.clearResultsBtn) {
+    elements.clearResultsBtn.style.display = "block";
+  }
 }
 
 /**
@@ -289,7 +444,9 @@ function showProgress(text, percentage) {
  * Hide progress indicator
  */
 function hideProgress() {
-  elements.progressSection.style.display = "none";
+  if (elements.progressSection) {
+    elements.progressSection.style.display = "none";
+  }
 }
 
 /**
@@ -310,15 +467,22 @@ function hideResults() {
  * Show error message
  */
 function showError(message) {
-  elements.errorMessage.textContent = message;
-  elements.errorSection.style.display = "block";
+  if (elements.errorMessage) {
+    elements.errorMessage.textContent = message;
+  }
+  if (elements.errorSection) {
+    elements.errorSection.style.display = "block";
+  }
+  console.error('Error:', message);
 }
 
 /**
  * Hide error message
  */
 function hideError() {
-  elements.errorSection.style.display = "none";
+  if (elements.errorSection) {
+    elements.errorSection.style.display = "none";
+  }
 }
 
 /**
@@ -335,13 +499,114 @@ function showApplyResults(appliedCount, totalCount) {
  */
 function clearResults() {
   currentSuggestions = [];
-  elements.resultsSection.style.display = "none";
-  elements.applySuggestionsBtn.style.display = "none";
-  elements.clearResultsBtn.style.display = "none";
-  elements.suggestionsList.innerHTML = "";
+  if (elements.resultsSection) {
+    elements.resultsSection.style.display = "none";
+  }
+  if (elements.applySuggestionsBtn) {
+    elements.applySuggestionsBtn.style.display = "none";
+  }
+  if (elements.clearResultsBtn) {
+    elements.clearResultsBtn.style.display = "none";
+  }
+  if (elements.suggestionsList) {
+    elements.suggestionsList.innerHTML = "";
+  }
   hideError();
   hideProgress();
   updateDocumentInfo();
+}
+
+/**
+ * Download all saved analysis sessions
+ */
+async function downloadAllSessions() {
+  try {
+    // Import the AnalysisLogger class
+    const { AnalysisLogger } = await import('../services/analysis-logger.js');
+    
+    const count = AnalysisLogger.downloadAllSessions();
+    
+    if (count > 0) {
+      showSuccess(`📥 Downloading ${count} analysis sessions...`);
+      console.log('📁 Check your Downloads folder for the markdown files');
+    } else {
+      showError('No analysis sessions found to download.');
+    }
+  } catch (error) {
+    console.error('Failed to download sessions:', error);
+    showError('Failed to download sessions. Please try again.');
+  }
+}
+
+/**
+ * Download a combined report of all sessions
+ */
+async function downloadCombinedReport() {
+  try {
+    // Import the AnalysisLogger class
+    const { AnalysisLogger } = await import('../services/analysis-logger.js');
+    
+    const success = AnalysisLogger.downloadCombinedReport();
+    
+    if (success) {
+      showSuccess('📊 Combined report downloaded successfully!');
+      console.log('📁 Check your Downloads folder for the combined report');
+    } else {
+      showError('No analysis sessions found to include in report.');
+    }
+  } catch (error) {
+    console.error('Failed to download combined report:', error);
+    showError('Failed to download combined report. Please try again.');
+  }
+}
+
+/**
+ * Show list of saved sessions in console and UI
+ */
+async function showSessionsList() {
+  try {
+    // Import the AnalysisLogger class
+    const { AnalysisLogger } = await import('../services/analysis-logger.js');
+    
+    const sessions = AnalysisLogger.getSavedSessions();
+    
+    console.log('\n📚 SAVED ANALYSIS SESSIONS:');
+    console.log('=' .repeat(60));
+    
+    if (sessions.length === 0) {
+      console.log('No saved sessions found.');
+      showError('No analysis sessions found.');
+    } else {
+      sessions.forEach((session, index) => {
+        const date = new Date(session.timestamp).toLocaleString();
+        console.log(`${index + 1}. Session: ${session.sessionId}`);
+        console.log(`   Date: ${date}`);
+        console.log(`   Document: ${session.wordCount} words, ${session.suggestionCount} suggestions`);
+        console.log('   ' + '-'.repeat(30));
+      });
+      
+      console.log(`\nTotal: ${sessions.length} sessions saved`);
+      console.log('=' .repeat(60));
+      
+      showSuccess(`📋 Found ${sessions.length} saved sessions. Check console for details.`);
+    }
+  } catch (error) {
+    console.error('Failed to load sessions:', error);
+    showError('Failed to load sessions. Please try again.');
+  }
+}
+
+/**
+ * Show success message to user
+ * @param {string} message - Success message
+ */
+function showSuccess(message) {
+  elements.docStatus.textContent = message;
+  elements.docStatus.style.color = "#107c10";
+  setTimeout(() => {
+    elements.docStatus.style.color = "";
+    updateDocumentInfo();
+  }, 3000);
 }
 
 // Export functions for testing

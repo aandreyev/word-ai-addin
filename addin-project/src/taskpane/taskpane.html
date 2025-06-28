@@ -5,89 +5,76 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AI Document Review Add-in</title>
+    <title>AI Document Review</title>
 
     <!-- Office JavaScript API -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 
-    <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
+    <!-- Fluent UI -->
     <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"/>
 
     <!-- Template styles -->
     <link href="taskpane.css" rel="stylesheet" type="text/css" />
 </head>
 
-<body class="ms-font-m ms-welcome ms-Fabric">
-    <header class="ms-welcome__header ms-bgColor-neutralLighter">
-        <img width="90" height="90" src="../../assets/logo-filled.png" alt="AI Review" title="AI Document Review" />
-        <h1 class="ms-font-su">AI Document Review</h1>
-    </header>
-    
+<body class="ms-font-m ms-Fabric">
     <section id="sideload-msg" class="ms-welcome__main">
         <h2 class="ms-font-xl">Please <a target="_blank" href="https://learn.microsoft.com/office/dev/add-ins/testing/test-debug-office-add-ins#sideload-an-office-add-in-for-testing">sideload</a> your add-in to see app body.</h2>
     </section>
     
-    <main id="app-body" class="ms-welcome__main" style="display: none;">
-        <!-- Status and Info Section -->
-        <div class="status-section">
-            <h2 class="ms-font-xl">Document Analysis & Review</h2>
-            <p class="ms-font-m">Use AI to analyze and improve your document's clarity, structure, and readability.</p>
-            
-            <div id="document-info" class="document-info">
-                <p class="ms-font-s"><strong>Document Status:</strong> <span id="doc-status">Ready for analysis</span></p>
-                <p class="ms-font-s"><strong>Word Count:</strong> <span id="word-count">-</span></p>
-            </div>
+    <main id="app-body" class="main-container">
+        <div class="tab-container">
+            <button class="tab-button active" data-tab="analyzer-tab">Analyzer</button>
+            <button class="tab-button" data-tab="log-viewer-tab">Log Viewer</button>
         </div>
 
-        <!-- Action Buttons Section -->
-        <div class="action-section">
-            <div role="button" id="analyze-document" class="ms-welcome__action ms-Button ms-Button--hero ms-font-m">
-                <span class="ms-Button-label">📝 Analyze Document</span>
-            </div>
-            
-            <div role="button" id="apply-suggestions" class="ms-welcome__action ms-Button ms-Button--primary ms-font-m" style="display: none;">
-                <span class="ms-Button-label">✨ Apply Suggestions</span>
-            </div>
-            
-            <div role="button" id="clear-results" class="ms-welcome__action ms-Button ms-font-m" style="display: none;">
-                <span class="ms-Button-label">🗑️ Clear Results</span>
-            </div>
-        </div>
-
-        <!-- Progress Section -->
-        <div id="progress-section" class="progress-section" style="display: none;">
-            <div class="ms-ProgressIndicator">
-                <div class="ms-ProgressIndicator-itemName">
-                    <span id="progress-text">Processing...</span>
-                </div>
-                <div class="ms-ProgressIndicator-progressTrack">
-                    <div id="progress-bar" class="ms-ProgressIndicator-progressBar" style="width: 0%;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results Section -->
-        <div id="results-section" class="results-section" style="display: none;">
-            <h3 class="ms-font-l">📋 Analysis Results</h3>
-            <div id="suggestions-list" class="suggestions-list">
-                <!-- Suggestions will be populated here -->
-            </div>
-        </div>
-
-        <!-- Error Section -->
-        <div id="error-section" class="error-section" style="display: none;">
-            <div class="ms-MessageBar ms-MessageBar--error">
-                <div class="ms-MessageBar-content">
-                    <div class="ms-MessageBar-icon">
-                        <i class="ms-Icon ms-Icon--Error"></i>
+        <div id="analyzer-tab" class="tab-content active">
+            <div class="main-content">
+                <h1 class="main-header">Document Analyzer</h1>
+                <p class="main-description">Click the button to analyze the document and get editing suggestions.</p>
+                <button id="analyze-button" class="primary-button">Analyze Document</button>
+                <div id="status-container" class="status-container" style="display: none;"></div>
+                
+                <!-- Progress Section -->
+                <div id="progress-section" class="progress-section" style="display: none;">
+                    <div class="progress-bar-container">
+                        <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
                     </div>
-                    <div class="ms-MessageBar-text">
-                        <span id="error-message">An error occurred.</span>
-                    </div>
+                    <div id="progress-text" class="progress-text">Processing...</div>
                 </div>
+
+                <!-- Error Section -->
+                <div id="error-section" class="error-section" style="display: none;">
+                    <div id="error-message" class="error-message"></div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="results-section" style="display: none;">
+                    <h3>AI Suggestions</h3>
+                    <div id="suggestions-list" class="suggestions-list"></div>
+                    <button id="apply-suggestions-button" class="primary-button" style="display: none;">Apply All Suggestions</button>
+                    <button id="clear-results-button" class="secondary-button" style="display: none;">Clear Results</button>
+                </div>
+
+                <!-- Document Status -->
+                <div id="doc-status" class="doc-status"></div>
             </div>
+
+            <div class="sidebar">
+                <h2 class="sidebar-header">Analysis History</h2>
+                <div id="history-container" class="history-container"></div>
+                <button id="clear-history-button" class="secondary-button">Clear History</button>
+                <button id="download-history-button" class="secondary-button">Download All</button>
+            </div>
+        </div>
+
+        <div id="log-viewer-tab" class="tab-content">
+            <h2 class="log-viewer-header">Analysis Log</h2>
+            <pre id="log-content" class="log-content-area"></pre>
         </div>
     </main>
+
+    <script type="module" src="taskpane.js"></script>
 </body>
 
 </html>

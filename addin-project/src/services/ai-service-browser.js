@@ -3,6 +3,11 @@
  * This module handles communication with the AI services in the browser environment
  */
 
+// Import analysis logger
+import { AnalysisLogger } from './analysis-logger.js';
+import { SimpleFileLogger } from './simple-file-logger.js';
+import { DocumentService } from './document-service.js';
+
 /**
  * AI Service class that handles document analysis using Gemini API
  */
@@ -11,6 +16,9 @@ class AIService {
     this.apiKey = this.getApiKey();
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
     this.modelName = 'gemini-1.5-flash';
+    this.logger = new AnalysisLogger();
+    this.fileLogger = new SimpleFileLogger();
+    this.documentService = new DocumentService();
   }
 
   /**
@@ -18,7 +26,13 @@ class AIService {
    * In production, this would be securely provided by the backend
    */
   getApiKey() {
-    // For now, we'll use a placeholder that would be replaced by the backend
+    // Check for API key in localStorage first
+    const storedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (storedKey && storedKey !== 'GEMINI_API_KEY_PLACEHOLDER') {
+      return storedKey;
+    }
+    
+    // For testing purposes, return placeholder
     return 'GEMINI_API_KEY_PLACEHOLDER';
   }
 
@@ -29,15 +43,93 @@ class AIService {
    */
   async analyzeDocument(documentText) {
     try {
+      // 🔍 DEBUG: Start logging session (both loggers)
+      const sessionId = this.logger.startSession(documentText);
+      const fileSessionId = this.fileLogger.startSession(documentText);
+      console.log(`📝 Started analysis session: ${sessionId}`);
+      console.log(`📁 Started file logging session: ${fileSessionId}`);
+      
       // Prepare the analysis prompt
       const prompt = this.buildAnalysisPrompt(documentText);
+      
+      // 🔍 DEBUG: Show the prompt
+      console.log('\n🤖 AI PROMPT:');
+      console.log('-' .repeat(40));
+      console.log(prompt);
+      console.log('-' .repeat(40));
       
       // Call Gemini API
       const response = await this.callGeminiAPI(prompt);
       
+      // 🔍 DEBUG: Show raw response
+      console.log('\n📥 RAW AI RESPONSE:');
+      console.log('-' .repeat(40));
+      console.log(response);
+      console.log('-' .repeat(40));
+      
       // Parse the response into structured suggestions
       const suggestions = this.parseAISuggestions(response);
       
+      // 🔍 DEBUG: Record suggestions in both loggers
+      this.logger.recordSuggestions(suggestions, response, prompt);
+      this.fileLogger.recordSuggestions(suggestions, response, prompt);
+      
+      // 🔍 DEBUG: Show detailed suggestion breakdown
+      console.log('\n📋 PARSED SUGGESTIONS - DETAILED BREAKDOWN:');
+      console.log('=' .repeat(60));
+      console.log(`🔢 Total Suggestions Generated: ${suggestions.length}`);
+      console.log('=' .repeat(60));
+      
+      suggestions.forEach((suggestion, index) => {
+        console.log(`\n📌 SUGGESTION #${index + 1}:`);
+        console.log(`   🎯 Action: ${suggestion.action.toUpperCase()}`);
+        
+        if (suggestion.action === 'insert') {
+          console.log(`   📍 Insert After Paragraph: ${suggestion.after_index}`);
+        } else {
+          console.log(`   📍 Target Paragraph: ${suggestion.index}`);
+        }
+        
+        console.log(`   📝 Instruction: "${suggestion.instruction}"`);
+        if (suggestion.reason) {
+          console.log(`   💡 Reason: "${suggestion.reason}"`);
+        }
+        
+        console.log('   🔧 COMPLETE JSON STRUCTURE:');
+        console.log('   ' + JSON.stringify(suggestion, null, 4).replace(/\n/g, '\n   '));
+        console.log('-' .repeat(50));
+      });
+      
+      // Show model response analysis
+      console.log('\n🧠 AI MODEL ANALYSIS SUMMARY:');
+      console.log(`   📊 Model Used: ${this.modelName}`);
+      console.log(`   🎯 Actions Distribution:`);
+      const actionCounts = suggestions.reduce((acc, s) => {
+        acc[s.action] = (acc[s.action] || 0) + 1;
+        return acc;
+      }, {});
+      Object.entries(actionCounts).forEach(([action, count]) => {
+        console.log(`     - ${action.toUpperCase()}: ${count} suggestions`);
+      });
+      console.log('=' .repeat(60));
+      
+      // 🔍 DEBUG: Save session immediately after analysis
+      try {
+        await this.logger.saveSession();
+        console.log(`📄 Analysis session saved to browser storage`);
+      } catch (error) {
+        console.warn('Failed to save browser analysis session:', error);
+      }
+
+      // Append the log data to the document
+      try {
+        const logContent = this.fileLogger.getSessionContent();
+        await this.documentService.appendLogData(logContent);
+        console.log(`📄 Appended analysis log to the document.`);
+      } catch (error) {
+        console.warn('Failed to append analysis log to document:', error);
+      }
+
       return suggestions;
     } catch (error) {
       console.error('AI analysis failed:', error);
@@ -196,156 +288,6 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
 }
 
 /**
- * Document Service for Word API interactions
- */
-class DocumentService {
-  /**
-   * Extract all text from the document
-   * @returns {Promise<string>} - Document text
-   */
-  async extractText() {
-    return Word.run(async (context) => {
-      const body = context.document.body;
-      body.load("text");
-      await context.sync();
-      return body.text;
-    });
-  }
-
-  /**
-   * Get paragraph count
-   * @returns {Promise<number>} - Number of paragraphs
-   */
-  async getParagraphCount() {
-    return Word.run(async (context) => {
-      const paragraphs = context.document.body.paragraphs;
-      paragraphs.load("items");
-      await context.sync();
-      return paragraphs.items.length;
-    });
-  }
-
-  /**
-   * Get word count
-   * @returns {Promise<number>} - Number of words
-   */
-  async getWordCount() {
-    const text = await this.extractText();
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-  }
-
-  /**
-   * Validate document size for processing
-   * @param {number} wordCount - Number of words
-   * @returns {boolean} - True if document is suitable for processing
-   */
-  validateDocumentSize(wordCount) {
-    return wordCount > 0 && wordCount <= 10000;
-  }
-
-  /**
-   * Apply a single suggestion to the document
-   * @param {Object} suggestion - The suggestion to apply
-   * @returns {Promise<void>}
-   */
-  async applySuggestion(suggestion) {
-    // 🔍 DEBUG: Show suggestion being applied
-    console.log(`\n🎯 APPLYING SUGGESTION:`, suggestion);
-    
-    return Word.run(async (context) => {
-      try {
-        const paragraphs = context.document.body.paragraphs;
-        paragraphs.load("items");
-        await context.sync();
-
-        console.log(`📊 Document has ${paragraphs.items.length} paragraphs`);
-
-        if (suggestion.action === "modify" && suggestion.index < paragraphs.items.length) {
-          console.log(`🔧 MODIFYING paragraph ${suggestion.index}`);
-          const paragraph = paragraphs.items[suggestion.index];
-          
-          // Skip comment insertion for now - use inline notes only
-          console.log('💬 Skipping comment insertion, using inline note only');
-          
-          // Add a note at the end of the paragraph
-          const range = paragraph.getRange(Word.RangeLocation.end);
-          range.insertText(` [AI: ${suggestion.instruction}]`, Word.InsertLocation.after);
-          range.font.color = "#0078d4";
-          range.font.italic = true;
-          console.log(`✅ Inline note added successfully`);
-          
-        } else if (suggestion.action === "insert") {
-          console.log(`➕ INSERTING paragraph after ${suggestion.after_index}`);
-          
-          let insertLocation = Word.InsertLocation.end;
-          let targetRange = context.document.body;
-          
-          if (suggestion.after_index !== undefined && suggestion.after_index < paragraphs.items.length) {
-            // Insert after specific paragraph
-            const afterParagraph = paragraphs.items[suggestion.after_index];
-            targetRange = afterParagraph.getRange(Word.RangeLocation.end);
-            insertLocation = Word.InsertLocation.after;
-          }
-          
-          const newParagraph = targetRange.insertParagraph(
-            `[AI Suggestion: ${suggestion.instruction}]`, 
-            insertLocation
-          );
-          newParagraph.font.color = "#0078d4";
-          newParagraph.font.italic = true;
-          console.log(`✅ New paragraph inserted successfully`);
-          
-        } else if (suggestion.action === "delete" && suggestion.index < paragraphs.items.length) {
-          console.log(`🗑️ MARKING FOR DELETION paragraph ${suggestion.index}`);
-          const paragraph = paragraphs.items[suggestion.index];
-          
-          // Skip comment insertion for now - use strike-through only
-          console.log('💬 Skipping comment insertion, using strike-through only');
-          
-          // Strike through the text to indicate deletion suggestion
-          paragraph.font.strikeThrough = true;
-          paragraph.font.color = "#a80000";
-          console.log(`✅ Strike-through formatting applied`);
-        } else {
-          console.log(`⚠️ SKIPPING suggestion - invalid action or index out of bounds`);
-          console.log(`   Action: ${suggestion.action}, Index: ${suggestion.index}, Max paragraphs: ${paragraphs.items.length}`);
-        }
-
-        await context.sync();
-        console.log(`✅ Suggestion applied and synced successfully`);
-        
-      } catch (error) {
-        console.error(`❌ Error applying suggestion:`, error);
-        console.error(`   Suggestion:`, suggestion);
-        throw error;
-      }
-    });
-  }
-
-  /**
-   * Create a backup of the current document state
-   * @returns {Promise<Object>} - Document snapshot
-   */
-  async createSnapshot() {
-    return Word.run(async (context) => {
-      const body = context.document.body;
-      const paragraphs = context.document.body.paragraphs;
-      
-      body.load("text");
-      paragraphs.load("items");
-      
-      await context.sync();
-      
-      return {
-        text: body.text,
-        paragraphCount: paragraphs.items.length,
-        timestamp: new Date().toISOString()
-      };
-    });
-  }
-}
-
-/**
  * Main AI Document Review Service
  * Coordinates between AI analysis and document manipulation
  */
@@ -361,20 +303,27 @@ class AIDocumentReviewService {
    */
   async analyzeDocument() {
     // Extract document content
-    const documentText = await this.documentService.extractText();
+    const documentText = await this.documentService.extractDocumentText();
     
     // Validate document
     const wordCount = await this.documentService.getWordCount();
-    if (!this.documentService.validateDocumentSize(wordCount)) {
+    if (wordCount <= 0 || wordCount > 10000) {
       throw new Error(`Document size not suitable for processing (${wordCount} words). Please use documents between 1 and 10,000 words.`);
     }
 
     // Get AI analysis
     const suggestions = await this.aiService.analyzeDocument(documentText);
     
-    // Validate against current document structure
-    const paragraphCount = await this.documentService.getParagraphCount();
-    return this.validateSuggestionsAgainstDocument(suggestions, paragraphCount);
+    // Validate against current document structure (simplified)
+    return suggestions.slice(0, 5); // Limit to 5 suggestions for safety
+  }
+
+  /**
+   * Get the latest log content from the file logger
+   * @returns {string} - The latest log content
+   */
+  getLatestLog() {
+    return this.aiService.fileLogger.getSessionContent();
   }
 
   /**
@@ -385,40 +334,47 @@ class AIDocumentReviewService {
   async applySuggestions(suggestions) {
     let appliedCount = 0;
     
-    for (const suggestion of suggestions) {
+    console.log(`\n🚀 APPLYING ${suggestions.length} SUGGESTIONS TO DOCUMENT:`);
+    console.log('=' .repeat(60));
+    
+    // Apply each suggestion to the actual document
+    for (let i = 0; i < suggestions.length; i++) {
+      const suggestion = suggestions[i];
       try {
-        await this.documentService.applySuggestion(suggestion);
-        appliedCount++;
+        console.log(`🔧 Applying suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
+        
+        // Use the document service to apply the suggestion
+        const success = await this.documentService.applySuggestion(suggestion);
+        
+        if (success) {
+          console.log(`✅ Applied suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
+          appliedCount++;
+        } else {
+          console.log(`❌ Failed to apply suggestion ${i + 1}/${suggestions.length}: ${suggestion.instruction}`);
+        }
       } catch (error) {
-        console.error('Failed to apply suggestion:', suggestion, error);
+        console.error('❌ Failed to apply suggestion:', suggestion, error);
       }
     }
     
+    // Record application results in both loggers
+    if (this.aiService.logger) {
+      this.aiService.logger.markApplied(appliedCount);
+      this.aiService.fileLogger.markApplied(appliedCount);
+      
+      // Save the session to markdown file
+      try {
+        await this.aiService.logger.saveSession();
+        console.log(`📄 Analysis session saved to browser storage`);
+      } catch (error) {
+        console.warn('Failed to save browser analysis session:', error);
+      }
+    }
+    
+    console.log(`\n🎯 APPLICATION COMPLETE: ${appliedCount}/${suggestions.length} suggestions applied`);
+    console.log('=' .repeat(60));
+    
     return appliedCount;
-  }
-
-  /**
-   * Validate suggestions against current document structure
-   * @param {Array} suggestions - Suggestions to validate
-   * @param {number} paragraphCount - Current paragraph count
-   * @returns {Array} - Valid suggestions
-   */
-  validateSuggestionsAgainstDocument(suggestions, paragraphCount) {
-    return suggestions.filter(suggestion => {
-      // Validate modify and delete actions
-      if ((suggestion.action === "modify" || suggestion.action === "delete") &&
-          (suggestion.index < 0 || suggestion.index >= paragraphCount)) {
-        return false;
-      }
-      
-      // Validate insert actions
-      if (suggestion.action === "insert" &&
-          (suggestion.after_index < 0 || suggestion.after_index >= paragraphCount)) {
-        return false;
-      }
-      
-      return true;
-    });
   }
 
   /**
@@ -427,13 +383,55 @@ class AIDocumentReviewService {
    */
   async getDocumentInfo() {
     const wordCount = await this.documentService.getWordCount();
-    const paragraphCount = await this.documentService.getParagraphCount();
     
     return {
       wordCount,
-      paragraphCount,
-      isValid: this.documentService.validateDocumentSize(wordCount)
+      paragraphCount: 0, // Simplified for now
+      isValid: wordCount > 0 && wordCount <= 10000
     };
+  }
+
+  /**
+   * Get all saved analysis sessions
+   * @returns {Array} - Array of session metadata
+   */
+  getSavedSessions() {
+    return AnalysisLogger.getSavedSessions();
+  }
+
+  /**
+   * Load a specific analysis session
+   * @param {string} sessionId - Session ID
+   * @returns {string|null} - Markdown content or null
+   */
+  loadSession(sessionId) {
+    return AnalysisLogger.loadSession(sessionId);
+  }
+
+  /**
+   * Display saved sessions in console
+   */
+  showSavedSessions() {
+    const sessions = this.getSavedSessions();
+    
+    console.log('\n📚 SAVED ANALYSIS SESSIONS:');
+    console.log('=' .repeat(60));
+    
+    if (sessions.length === 0) {
+      console.log('No saved sessions found.');
+    } else {
+      sessions.forEach((session, index) => {
+        const date = new Date(session.timestamp).toLocaleString();
+        console.log(`${index + 1}. Session: ${session.sessionId}`);
+        console.log(`   Date: ${date}`);
+        console.log(`   Document: ${session.wordCount} words, ${session.suggestionCount} suggestions`);
+        console.log('   -'.repeat(30));
+      });
+      
+      console.log(`\nTotal: ${sessions.length} sessions saved`);
+      console.log('Use loadSession(sessionId) to view details');
+    }
+    console.log('=' .repeat(60));
   }
 }
 

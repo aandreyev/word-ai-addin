@@ -222,4 +222,23 @@ export class DocumentService implements IDocumentService {
       });
     });
   }
+
+  /**
+   * Appends a string of log data to the end of the document.
+   * @param logContent The string content to append.
+   */
+  async appendLogData(logContent: string): Promise<void> {
+    return Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+        body.insertText('\n--- AI ANALYSIS LOG DATA ---\n', Word.InsertLocation.end);
+        body.insertText(logContent, Word.InsertLocation.end);
+        body.insertText('\n--- END OF LOG ---\n', Word.InsertLocation.end);
+        await context.sync();
+      } catch (error) {
+        console.error('Error appending log data to document:', error);
+        // Don't reject promise, as this is a non-critical logging operation
+      }
+    });
+  }
 }

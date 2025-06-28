@@ -19,7 +19,7 @@ module.exports = async (env, options) => {
     devtool: "source-map",
     entry: {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
-      taskpane: ["./src/taskpane/taskpane.js", "./src/taskpane/taskpane.html"],
+      taskpane: "./src/taskpane/taskpane.js",
       commands: "./src/commands/commands.js",
     },
     output: {
@@ -91,10 +91,20 @@ module.exports = async (env, options) => {
         "Access-Control-Allow-Origin": "*",
       },
       server: {
-        type: "https",
-        options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
+        type: 'https',
+        options: await getHttpsOptions(),
       },
       port: process.env.npm_package_config_dev_server_port || 3000,
+      proxy: [
+        {
+          context: ['/api'],
+          target: 'http://localhost:3001',
+          pathRewrite: { '^/api': '' },
+          secure: false,
+          changeOrigin: true,
+          logLevel: 'debug',
+        },
+      ],
     },
   };
 

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTPS Certificate Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔐 HTTPS Certificate Test</h1>
+    <p>This page helps you accept the self-signed SSL certificate for the log server.</p>
+    
+    <div class="warning test-result">
+        <strong>Step 1:</strong> The log server uses a self-signed certificate that your browser needs to trust.
+    </div>
+    
+    <h2>Tests</h2>
+    
+    <div>
+        <button onclick="testHTTPS()">Test HTTPS Connection</button>
+        <button onclick="testLogSave()">Test Log Save</button>
+        <button onclick="openLogServer()">Open Log Server</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <h2>Manual Steps</h2>
+    <ol>
+        <li><strong>Accept Certificate:</strong> Click "Open Log Server" button above</li>
+        <li><strong>Browser Warning:</strong> You'll see a security warning</li>
+        <li><strong>Accept Risk:</strong> Click "Advanced" → "Proceed to localhost (unsafe)"</li>
+        <li><strong>Verify:</strong> You should see JSON health response</li>
+        <li><strong>Test Add-in:</strong> Return to Word and try the analysis again</li>
+    </ol>
+    
+    <h2>Troubleshooting</h2>
+    <div class="warning test-result">
+        <strong>If logs still don't save:</strong>
+        <ul>
+            <li>Make sure both servers are running (add-in on 3000, log server on 3001)</li>
+            <li>Accept the certificate in the same browser/context as the Word add-in</li>
+            <li>Check the browser console for any HTTPS errors</li>
+            <li>Try the manual curl test: <code>curl -k https://localhost:3001/api/health</code></li>
+        </ul>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        async function testHTTPS() {
+            addResult('🔍 Testing HTTPS connection...', 'warning');
+            try {
+                const response = await fetch('https://localhost:3001/api/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ HTTPS connection successful!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    addResult(`❌ HTTPS connection failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ HTTPS connection error: ${error.message}<br><em>You may need to accept the certificate first.</em>`, 'error');
+            }
+        }
+        
+        async function testLogSave() {
+            addResult('🔍 Testing log save...', 'warning');
+            try {
+                const testLog = {
+                    sessionId: `browser-test-${Date.now()}`,
+                    markdown: `# Browser Test Log\\n\\nGenerated at: ${new Date().toISOString()}\\n\\n## Test Results\\n- Browser: ${navigator.userAgent}\\n- Timestamp: ${Date.now()}`
+                };
+                
+                const response = await fetch('https://localhost:3001/api/save-log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testLog)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Log save successful!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    addResult(`❌ Log save failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Log save error: ${error.message}`, 'error');
+            }
+        }
+        
+        function openLogServer() {
+            window.open('https://localhost:3001/api/health', '_blank');
+        }
+    </script>
+</body>
+</html>

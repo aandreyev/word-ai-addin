@@ -13,3 +13,4 @@ Example JSON response:
     "action": "modify",
     "index": 3,
     "instruction": "Clarify the definition of Effective
+

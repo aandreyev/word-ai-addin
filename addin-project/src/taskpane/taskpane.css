@@ -1,191 +1,129 @@
-/* 
- * Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT license.
- * See LICENSE in the project root for license information.
- */
+/* AI Document Review Add-in - Utilitarian Styles */
 
- html,
- body {
-     width: 100%;
-     height: 100%;
-     margin: 0;
-     padding: 0;
- }
- 
- ul {
-     margin: 0;
-     padding: 0;
- }
- 
- .ms-welcome__header {
-    padding: 20px;
-    padding-bottom: 30px;
-    padding-top: 100px;
-    display: -webkit-flex;
-    display: flex;
-    -webkit-flex-direction: column;
-    flex-direction: column;
-    align-items: center;
- }
-
- .ms-welcome__main {
-    display: -webkit-flex;
-    display: flex;
-    -webkit-flex-direction: column;
-    flex-direction: column;
-    -webkit-flex-wrap: nowrap;
-    flex-wrap: nowrap;
-    -webkit-align-items: center;
-    align-items: center;
-    -webkit-flex: 1 0 0;
-    flex: 1 0 0;
-    padding: 10px 20px;
- }
- 
- .ms-welcome__main > h2 {
-     width: 100%;
-     text-align: center;
- }
- 
- .ms-welcome__features {
-     list-style-type: none;
-     margin-top: 20px;
- }
- 
- .ms-welcome__features.ms-List .ms-ListItem {
-     padding-bottom: 20px;
-     display: -webkit-flex;
-     display: flex;
- }
- 
- .ms-welcome__features.ms-List .ms-ListItem > .ms-Icon {
-     margin-right: 10px;
- }
- 
- .ms-welcome__action.ms-Button--hero {
-     margin-top: 30px;
- }
- 
-.ms-Button.ms-Button--hero .ms-Button-label {
-  color: #0078d7;
-}
-
-.ms-Button.ms-Button--hero:hover .ms-Button-label,
-.ms-Button.ms-Button--hero:focus .ms-Button-label{
-  color: #005a9e;
-  cursor: pointer;
-}
-
-b {
-    font-weight: bold;
-}
-
-/* AI Document Review Add-in Custom Styles */
-
-/* Section Layouts */
-.status-section, .action-section, .progress-section, .results-section, .error-section {
+html, body {
     width: 100%;
-    margin-bottom: 20px;
-    padding: 0 10px;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Main container */
+.main-container {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    gap: 15px;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Status section */
 .status-section {
-    text-align: center;
-    border-bottom: 1px solid #e1e1e1;
-    padding-bottom: 15px;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid #0078d4;
 }
 
 .document-info {
-    margin-top: 10px;
-    padding: 10px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    text-align: left;
+    margin: 0;
 }
 
 .document-info p {
     margin: 5px 0;
+    font-size: 12px;
 }
 
-/* Action Buttons */
+/* Action buttons section */
 .action-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    align-items: center;
+    gap: 8px;
 }
 
-.ms-welcome__action {
-    width: 90%;
-    max-width: 250px;
-    text-align: center;
-    padding: 12px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.ms-welcome__action:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.ms-welcome__action:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Progress Section */
-.progress-section {
-    text-align: center;
-}
-
-.ms-ProgressIndicator {
+.action-section .ms-Button {
     width: 100%;
-    margin: 10px 0;
+    height: 36px;
+    justify-content: center;
 }
 
-.ms-ProgressIndicator-itemName {
-    margin-bottom: 8px;
+/* Download section */
+.download-section {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #e1e5e9;
+}
+
+.download-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
     color: #323130;
 }
 
-.ms-ProgressIndicator-progressTrack {
+.download-section .ms-Button {
     width: 100%;
-    height: 4px;
-    background-color: #e1e1e1;
-    border-radius: 2px;
+    margin: 4px 0;
+    height: 32px;
+    font-size: 12px;
+}
+
+/* Progress section */
+.progress-section {
+    margin: 15px 0;
+    padding: 10px;
+    background: #f3f2f1;
+    border-radius: 4px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background: #e1dfdd;
+    border-radius: 4px;
     overflow: hidden;
 }
 
-.ms-ProgressIndicator-progressBar {
+.progress-bar {
     height: 100%;
-    background-color: #0078d4;
+    background: #0078d4;
     transition: width 0.3s ease;
-    border-radius: 2px;
 }
 
-/* Results Section */
+.progress-text {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #605e5c;
+}
+
+/* Results section styles */
 .results-section {
-    max-height: 300px;
-    overflow-y: auto;
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e1dfdd;
+}
+
+.results-section h3 {
+    margin: 0 0 15px 0;
+    color: #323130;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .suggestions-list {
-    width: 100%;
+    margin-bottom: 15px;
 }
 
 .suggestion-item {
-    margin-bottom: 15px;
+    background: white;
+    border: 1px solid #e1dfdd;
+    border-radius: 4px;
     padding: 12px;
-    border: 1px solid #e1e1e1;
-    border-radius: 6px;
-    background-color: #ffffff;
-    transition: box-shadow 0.2s ease;
-}
-
-.suggestion-item:hover {
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    margin-bottom: 8px;
 }
 
 .suggestion-header {
@@ -198,78 +136,231 @@ b {
 .suggestion-action {
     font-weight: 600;
     color: #0078d4;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .suggestion-index {
-    background-color: #f3f2f1;
-    color: #323130;
-    padding: 2px 8px;
-    border-radius: 12px;
     font-size: 12px;
+    color: #605e5c;
 }
 
 .suggestion-instruction {
-    margin-bottom: 8px;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-left: 3px solid #0078d4;
-    border-radius: 0 4px 4px 0;
-    font-style: italic;
+    color: #323130;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 4px;
 }
 
 .suggestion-reason {
     font-size: 12px;
     color: #605e5c;
-    margin-top: 5px;
+    font-style: italic;
 }
 
-/* Error Section */
-.error-section {
-    margin: 10px 0;
-}
-
-.ms-MessageBar {
-    padding: 12px;
+/* Sessions section */
+.sessions-section {
+    flex: 1;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e1e5e9;
     border-radius: 4px;
+    padding: 12px;
+}
+
+.sessions-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #323130;
+}
+
+.sessions-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Error section */
+.error-section {
+    margin: 15px 0;
+    padding: 10px;
+    background: #fef7f1;
+    border: 1px solid #d13438;
+    border-radius: 4px;
+}
+
+.error-message {
+    color: #d13438;
+    font-size: 13px;
+    margin: 0;
+}
+
+/* Sideload message */
+#sideload-msg {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    padding: 20px;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Button overrides for cleaner look */
+.ms-Button {
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.ms-Button--primary {
+    background-color: #0078d4;
+    border-color: #0078d4;
+}
+
+.ms-Button--primary:hover {
+    background-color: #106ebe;
+    border-color: #106ebe;
+}
+
+.ms-Button--default {
+    background-color: #ffffff;
+    border-color: #8a8886;
+    color: #323130;
+}
+
+.ms-Button--default:hover {
+    background-color: #f3f2f1;
+    border-color: #8a8886;
+}
+
+/* Compact spacing */
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+}
+
+p {
+    margin: 0;
+}
+
+/* Hide elements by default */
+.hidden {
+    display: none !important;
+}
+
+/* Progress indicator styling */
+.ms-ProgressIndicator {
+    padding: 0;
+}
+
+.ms-ProgressIndicator-itemName {
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: #605e5c;
+}
+
+.ms-ProgressIndicator-progressTrack {
+    height: 4px;
+    background-color: #edebe9;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ms-ProgressIndicator-progressBar {
+    height: 100%;
+    background-color: #0078d4;
+    transition: width 0.3s ease;
+}
+
+/* Message bar styling */
+.ms-MessageBar {
+    border-radius: 4px;
+    padding: 8px 12px;
 }
 
 .ms-MessageBar--error {
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #dc2626;
+    background-color: #fde7e9;
+    border: 1px solid #a4262c;
 }
 
 .ms-MessageBar-content {
     display: flex;
     align-items: center;
-    width: 100%;
 }
 
 .ms-MessageBar-icon {
     margin-right: 8px;
-    font-size: 16px;
+    color: #a4262c;
 }
 
 .ms-MessageBar-text {
-    flex: 1;
+    font-size: 12px;
+    color: #323130;
 }
 
-/* Responsive Design */
-@media (max-width: 320px) {
-    .ms-welcome__action {
-        width: 95%;
-        font-size: 14px;
-        padding: 10px 12px;
-    }
-    
-    .suggestion-item {
-        padding: 8px;
-    }
-    
-    .ms-welcome__main {
-        padding: 5px 10px;
-    }
+/* Tab container styles */
+.tab-container {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 15px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 16px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.tab-button.active {
+    border-bottom: 2px solid #0078d4;
+    font-weight: bold;
+    color: #0078d4;
+}
+
+.tab-button:hover {
+    background-color: #f0f0f0;
+}
+
+/* Tab content styles */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Log viewer styles */
+.log-viewer-header {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.log-content-area {
+    white-space: pre-wrap; /* Allows wrapping and preserves whitespace */
+    word-wrap: break-word; /* Breaks long words */
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    height: 400px; /* Or adjust as needed */
+    overflow-y: auto; /* Adds a scrollbar if content overflows */
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+    color: #333;
+}
+
+/* Document status */
+.doc-status {
+    margin: 10px 0;
+    font-size: 12px;
+    color: #605e5c;
+    text-align: center;
 }
