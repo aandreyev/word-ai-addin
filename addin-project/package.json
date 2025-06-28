@@ -22,6 +22,8 @@
     "signout": "office-addin-dev-settings m365-account logout",
     "start": "office-addin-debugging start manifest.xml",
     "stop": "office-addin-debugging stop manifest.xml",
+    "test": "node ../test-final-integration.js",
+    "test:comprehensive": "node ../test-comprehensive.js && node ../test-final-integration.js",
     "validate": "office-addin-manifest validate manifest.xml",
     "watch": "webpack --mode development --watch"
   },

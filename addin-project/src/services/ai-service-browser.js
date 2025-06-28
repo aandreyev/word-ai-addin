@@ -249,28 +249,76 @@ class DocumentService {
    * @returns {Promise<void>}
    */
   async applySuggestion(suggestion) {
+    // 🔍 DEBUG: Show suggestion being applied
+    console.log(`\n🎯 APPLYING SUGGESTION:`, suggestion);
+    
     return Word.run(async (context) => {
-      const paragraphs = context.document.body.paragraphs;
-      paragraphs.load("items");
-      await context.sync();
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load("items");
+        await context.sync();
 
-      if (suggestion.action === "modify" && suggestion.index < paragraphs.items.length) {
-        const paragraph = paragraphs.items[suggestion.index];
-        paragraph.insertComment(`AI Suggestion: ${suggestion.instruction}`, Word.CommentScope.range);
-      } else if (suggestion.action === "insert" && suggestion.after_index < paragraphs.items.length) {
-        const insertAfter = paragraphs.items[suggestion.after_index];
-        const newParagraph = insertAfter.insertParagraph(
-          `[AI Suggestion: ${suggestion.instruction}]`, 
-          Word.InsertLocation.after
-        );
-        newParagraph.font.color = "#0078d4";
-        newParagraph.font.italic = true;
-      } else if (suggestion.action === "delete" && suggestion.index < paragraphs.items.length) {
-        const paragraph = paragraphs.items[suggestion.index];
-        paragraph.insertComment(`AI Suggestion: Consider removing this paragraph. ${suggestion.reason}`, Word.CommentScope.range);
+        console.log(`📊 Document has ${paragraphs.items.length} paragraphs`);
+
+        if (suggestion.action === "modify" && suggestion.index < paragraphs.items.length) {
+          console.log(`🔧 MODIFYING paragraph ${suggestion.index}`);
+          const paragraph = paragraphs.items[suggestion.index];
+          
+          // Skip comment insertion for now - use inline notes only
+          console.log('💬 Skipping comment insertion, using inline note only');
+          
+          // Add a note at the end of the paragraph
+          const range = paragraph.getRange(Word.RangeLocation.end);
+          range.insertText(` [AI: ${suggestion.instruction}]`, Word.InsertLocation.after);
+          range.font.color = "#0078d4";
+          range.font.italic = true;
+          console.log(`✅ Inline note added successfully`);
+          
+        } else if (suggestion.action === "insert") {
+          console.log(`➕ INSERTING paragraph after ${suggestion.after_index}`);
+          
+          let insertLocation = Word.InsertLocation.end;
+          let targetRange = context.document.body;
+          
+          if (suggestion.after_index !== undefined && suggestion.after_index < paragraphs.items.length) {
+            // Insert after specific paragraph
+            const afterParagraph = paragraphs.items[suggestion.after_index];
+            targetRange = afterParagraph.getRange(Word.RangeLocation.end);
+            insertLocation = Word.InsertLocation.after;
+          }
+          
+          const newParagraph = targetRange.insertParagraph(
+            `[AI Suggestion: ${suggestion.instruction}]`, 
+            insertLocation
+          );
+          newParagraph.font.color = "#0078d4";
+          newParagraph.font.italic = true;
+          console.log(`✅ New paragraph inserted successfully`);
+          
+        } else if (suggestion.action === "delete" && suggestion.index < paragraphs.items.length) {
+          console.log(`🗑️ MARKING FOR DELETION paragraph ${suggestion.index}`);
+          const paragraph = paragraphs.items[suggestion.index];
+          
+          // Skip comment insertion for now - use strike-through only
+          console.log('💬 Skipping comment insertion, using strike-through only');
+          
+          // Strike through the text to indicate deletion suggestion
+          paragraph.font.strikeThrough = true;
+          paragraph.font.color = "#a80000";
+          console.log(`✅ Strike-through formatting applied`);
+        } else {
+          console.log(`⚠️ SKIPPING suggestion - invalid action or index out of bounds`);
+          console.log(`   Action: ${suggestion.action}, Index: ${suggestion.index}, Max paragraphs: ${paragraphs.items.length}`);
+        }
+
+        await context.sync();
+        console.log(`✅ Suggestion applied and synced successfully`);
+        
+      } catch (error) {
+        console.error(`❌ Error applying suggestion:`, error);
+        console.error(`   Suggestion:`, suggestion);
+        throw error;
       }
-
-      await context.sync();
     });
   }
 

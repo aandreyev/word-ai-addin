@@ -187,12 +187,29 @@ async function getAIAnalysis(documentText) {
 async function applySuggestions() {
   if (!currentSuggestions || currentSuggestions.length === 0) return;
   
+  // 🔍 DEBUG: Show what suggestions are being applied
+  console.log('\n🚀 APPLYING SUGGESTIONS TO DOCUMENT:');
+  console.log('=' .repeat(60));
+  console.log(`📊 Total suggestions to apply: ${currentSuggestions.length}`);
+  
+  currentSuggestions.forEach((suggestion, index) => {
+    console.log(`\n🎯 SUGGESTION ${index + 1} TO APPLY:`);
+    console.log(`   Action: ${suggestion.action.toUpperCase()}`);
+    console.log(`   Target: ${suggestion.action === 'insert' ? `After paragraph ${suggestion.after_index}` : `Paragraph ${suggestion.index}`}`);
+    console.log(`   Instruction: "${suggestion.instruction}"`);
+    console.log('   Full suggestion JSON:', JSON.stringify(suggestion, null, 2));
+  });
+  console.log('=' .repeat(60));
+  
   try {
     isProcessing = true;
     showProgress("Applying suggestions...", 0);
     
     // Use the AI service to apply suggestions
     const appliedCount = await window.aiDocumentReviewService.applySuggestions(currentSuggestions);
+    
+    console.log(`\n✅ SUGGESTIONS APPLIED SUCCESSFULLY!`);
+    console.log(`📈 Applied ${appliedCount} out of ${currentSuggestions.length} suggestions`);
     
     showProgress("Complete!", 100);
     
@@ -203,7 +220,7 @@ async function applySuggestions() {
     }, 1000);
     
   } catch (error) {
-    console.error("Failed to apply suggestions:", error);
+    console.error("❌ FAILED TO APPLY SUGGESTIONS:", error);
     hideProgress();
     showError("Failed to apply suggestions. Please try again.");
   } finally {

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Service Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #106ebe; }
+        .debug-output { background: #f5f5f5; padding: 15px; margin: 10px 0; border-left: 4px solid #0078d4; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 AI Service Debug Test</h1>
+    <p>This page lets you test the AI service debugging output in a regular browser.</p>
+    
+    <h3>Test Document Text:</h3>
+    <textarea id="documentText" placeholder="Enter some test text here. Try multiple paragraphs, long sentences, and passive voice...">This is a very long sentence that should trigger the AI model to suggest breaking it down into shorter, more digestible pieces for better readability and user comprehension. The document was analyzed by the system and improvements were suggested by the artificial intelligence model. Here is another paragraph that contains passive voice constructions. This paragraph is much shorter and should be fine.</textarea>
+    
+    <button onclick="testAIAnalysis()">🤖 Test AI Analysis (Check Console)</button>
+    <button onclick="clearConsole()">🧹 Clear Console</button>
+    
+    <div class="debug-output" id="instructions">
+        <strong>Instructions:</strong>
+        1. Open browser console (F12 or Cmd+Option+I)
+        2. Click "Test AI Analysis" button above
+        3. Watch the detailed debugging output in console
+        4. Try different text samples to see how the AI analyzes them
+    </div>
+
+    <script type="module">
+        // Mock environment variables for testing
+        window.process = {
+            env: {
+                GEMINI_API_KEY: 'test-key',
+                GEMINI_MODEL: 'gemini-1.5-flash'
+            }
+        };
+
+        // Import our AI service
+        import './dist/services/ai-service-browser.js';
+
+        // Make functions available globally for button clicks
+        window.testAIAnalysis = async function() {
+            console.clear();
+            console.log('🚀 STARTING AI SERVICE DEBUG TEST');
+            console.log('=' .repeat(60));
+            
+            const text = document.getElementById('documentText').value;
+            
+            if (!text.trim()) {
+                console.log('❌ No text provided for analysis');
+                return;
+            }
+            
+            try {
+                // Create AI service instance
+                const AIService = (await import('./dist/services/ai-service-browser.js')).default;
+                const aiService = new AIService();
+                
+                // Run analysis with full debugging
+                console.log('📝 Starting document analysis...');
+                const suggestions = await aiService.analyzeDocument(text);
+                
+                console.log('\n🎉 ANALYSIS COMPLETE!');
+                console.log(`✅ Generated ${suggestions.length} suggestions`);
+                console.log('=' .repeat(60));
+                
+            } catch (error) {
+                console.error('❌ Analysis failed:', error);
+            }
+        };
+
+        window.clearConsole = function() {
+            console.clear();
+            console.log('🧹 Console cleared - Ready for new test');
+        };
+
+        // Show initial message
+        console.log('🔍 AI Service Debug Test Page Loaded');
+        console.log('Click the "Test AI Analysis" button to see detailed debugging output');
+    </script>
+</body>
+</html>
