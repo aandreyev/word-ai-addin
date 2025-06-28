@@ -78,3 +78,198 @@
 b {
     font-weight: bold;
 }
+
+/* AI Document Review Add-in Custom Styles */
+
+/* Section Layouts */
+.status-section, .action-section, .progress-section, .results-section, .error-section {
+    width: 100%;
+    margin-bottom: 20px;
+    padding: 0 10px;
+}
+
+.status-section {
+    text-align: center;
+    border-bottom: 1px solid #e1e1e1;
+    padding-bottom: 15px;
+}
+
+.document-info {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    text-align: left;
+}
+
+.document-info p {
+    margin: 5px 0;
+}
+
+/* Action Buttons */
+.action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.ms-welcome__action {
+    width: 90%;
+    max-width: 250px;
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ms-welcome__action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.ms-welcome__action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Progress Section */
+.progress-section {
+    text-align: center;
+}
+
+.ms-ProgressIndicator {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.ms-ProgressIndicator-itemName {
+    margin-bottom: 8px;
+    color: #323130;
+}
+
+.ms-ProgressIndicator-progressTrack {
+    width: 100%;
+    height: 4px;
+    background-color: #e1e1e1;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ms-ProgressIndicator-progressBar {
+    height: 100%;
+    background-color: #0078d4;
+    transition: width 0.3s ease;
+    border-radius: 2px;
+}
+
+/* Results Section */
+.results-section {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.suggestions-list {
+    width: 100%;
+}
+
+.suggestion-item {
+    margin-bottom: 15px;
+    padding: 12px;
+    border: 1px solid #e1e1e1;
+    border-radius: 6px;
+    background-color: #ffffff;
+    transition: box-shadow 0.2s ease;
+}
+
+.suggestion-item:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.suggestion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.suggestion-action {
+    font-weight: 600;
+    color: #0078d4;
+    font-size: 14px;
+}
+
+.suggestion-index {
+    background-color: #f3f2f1;
+    color: #323130;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.suggestion-instruction {
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #0078d4;
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+}
+
+.suggestion-reason {
+    font-size: 12px;
+    color: #605e5c;
+    margin-top: 5px;
+}
+
+/* Error Section */
+.error-section {
+    margin: 10px 0;
+}
+
+.ms-MessageBar {
+    padding: 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.ms-MessageBar--error {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+}
+
+.ms-MessageBar-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.ms-MessageBar-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.ms-MessageBar-text {
+    flex: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 320px) {
+    .ms-welcome__action {
+        width: 95%;
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+    
+    .suggestion-item {
+        padding: 8px;
+    }
+    
+    .ms-welcome__main {
+        padding: 5px 10px;
+    }
+}

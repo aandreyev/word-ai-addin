@@ -1,6 +1,3 @@
-<!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->
-<!-- This file shows how to design a first-run page that provides a welcome screen to the user about the features of the add-in. -->
-
 <!DOCTYPE html>
 <html>
 
@@ -8,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Contoso Task Pane Add-in</title>
+    <title>AI Document Review Add-in</title>
 
     <!-- Office JavaScript API -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
@@ -22,33 +19,74 @@
 
 <body class="ms-font-m ms-welcome ms-Fabric">
     <header class="ms-welcome__header ms-bgColor-neutralLighter">
-        <img width="90" height="90" src="../../assets/logo-filled.png" alt="Contoso" title="Contoso" />
-        <h1 class="ms-font-su">Welcome</h1>
+        <img width="90" height="90" src="../../assets/logo-filled.png" alt="AI Review" title="AI Document Review" />
+        <h1 class="ms-font-su">AI Document Review</h1>
     </header>
+    
     <section id="sideload-msg" class="ms-welcome__main">
         <h2 class="ms-font-xl">Please <a target="_blank" href="https://learn.microsoft.com/office/dev/add-ins/testing/test-debug-office-add-ins#sideload-an-office-add-in-for-testing">sideload</a> your add-in to see app body.</h2>
     </section>
+    
     <main id="app-body" class="ms-welcome__main" style="display: none;">
-        <h2 class="ms-font-xl"> Discover what Office Add-ins can do for you today! </h2>
-        <ul class="ms-List ms-welcome__features">
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Ribbon ms-font-xl"></i>
-                <span class="ms-font-m">Achieve more with Office integration</span>
-            </li>
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Unlock ms-font-xl"></i>
-                <span class="ms-font-m">Unlock features and functionality</span>
-            </li>
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Design ms-font-xl"></i>
-                <span class="ms-font-m">Create and visualize like a pro</span>
-            </li>
-        </ul>
-        <p class="ms-font-l">Modify the source files, then click <b>Run</b>.</p>
-        <div role="button" id="run" class="ms-welcome__action ms-Button ms-Button--hero ms-font-xl">
-            <span class="ms-Button-label">Run</span>
+        <!-- Status and Info Section -->
+        <div class="status-section">
+            <h2 class="ms-font-xl">Document Analysis & Review</h2>
+            <p class="ms-font-m">Use AI to analyze and improve your document's clarity, structure, and readability.</p>
+            
+            <div id="document-info" class="document-info">
+                <p class="ms-font-s"><strong>Document Status:</strong> <span id="doc-status">Ready for analysis</span></p>
+                <p class="ms-font-s"><strong>Word Count:</strong> <span id="word-count">-</span></p>
+            </div>
         </div>
-        <p><label id="item-subject"></label></p>
+
+        <!-- Action Buttons Section -->
+        <div class="action-section">
+            <div role="button" id="analyze-document" class="ms-welcome__action ms-Button ms-Button--hero ms-font-m">
+                <span class="ms-Button-label">📝 Analyze Document</span>
+            </div>
+            
+            <div role="button" id="apply-suggestions" class="ms-welcome__action ms-Button ms-Button--primary ms-font-m" style="display: none;">
+                <span class="ms-Button-label">✨ Apply Suggestions</span>
+            </div>
+            
+            <div role="button" id="clear-results" class="ms-welcome__action ms-Button ms-font-m" style="display: none;">
+                <span class="ms-Button-label">🗑️ Clear Results</span>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progress-section" class="progress-section" style="display: none;">
+            <div class="ms-ProgressIndicator">
+                <div class="ms-ProgressIndicator-itemName">
+                    <span id="progress-text">Processing...</span>
+                </div>
+                <div class="ms-ProgressIndicator-progressTrack">
+                    <div id="progress-bar" class="ms-ProgressIndicator-progressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="results-section" style="display: none;">
+            <h3 class="ms-font-l">📋 Analysis Results</h3>
+            <div id="suggestions-list" class="suggestions-list">
+                <!-- Suggestions will be populated here -->
+            </div>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="error-section" style="display: none;">
+            <div class="ms-MessageBar ms-MessageBar--error">
+                <div class="ms-MessageBar-content">
+                    <div class="ms-MessageBar-icon">
+                        <i class="ms-Icon ms-Icon--Error"></i>
+                    </div>
+                    <div class="ms-MessageBar-text">
+                        <span id="error-message">An error occurred.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </body>
 
