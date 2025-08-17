@@ -34,11 +34,6 @@ Do each step in small increments, and seek review and confirmation from me befor
 
 ## Docker Best Practices
 
-- Use official base images (node:18-alpine)
-- Create non-root users in containers for security
-- Use volume mounting for code persistence
-- Expose only necessary ports
-- Include all development tools in the container image
 
 ## Doppler Integration Patterns
 

@@ -14,7 +14,8 @@
   "scripts": {
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
-    "dev": "concurrently \"npm:log-server\" \"npm:start\"",
+  "dev": "concurrently \"npm:log-server\" \"npm:start\"",
+  "start-with-logs": "concurrently \"npm:log-server\" \"npm:start\"",
     "dev-server": "webpack serve --mode development",
     "log-server": "node log-server.js",
     "lint": "office-addin-lint check",

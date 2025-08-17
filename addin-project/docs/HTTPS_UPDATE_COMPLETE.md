@@ -17,8 +17,8 @@ The mixed content error preventing log file saving has been **RESOLVED**. The ad
 - ✅ **Maintains same API compatibility**
 
 ### 3. Updated Documentation
-- ✅ **Updated SIMPLE_LOGGING.md** with HTTPS instructions
-- ✅ **Updated check-logging.sh** to test both HTTPS and HTTP
+- ✅ **Updated `docs/SIMPLE_LOGGING.md`** with HTTPS instructions
+- ✅ **Updated `tools/check-logging.sh`** to test both HTTPS and HTTP
 - ✅ **Added .gitignore** to exclude SSL certificates
 
 ## Current Status
@@ -76,7 +76,7 @@ If you still get errors:
 
 2. **Test the logging system**:
    ```bash
-   bash check-logging.sh
+   bash ../tools/check-logging.sh
    ```
 
 3. **Manual log test**:

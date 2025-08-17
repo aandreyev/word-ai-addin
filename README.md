@@ -179,11 +179,9 @@ The environment is designed for zero-configuration setup once Doppler access is 
 
 ## Documentation
 
-- [Project Overview](Project%20Overview.md) - Detailed architecture and implementation plan
-- [Tech Specification](Tech%20Specification.md) - Complete technical requirements
-- [Doppler Setup](DOPPLER_SETUP.md) - Detailed secrets management guide
-- [Coding Principles](Coding%20principles.md) - Development best practices
-- [Future Enhancements](Future%20Enhancements.md) - Planned improvements
+All top-level project documentation has been consolidated under the `docs/` folder. See `docs/index.md` for links and an index of cleaned documentation.
+
+Reference: `docs/index.md`
 
 ## 🔑 API Key Management
 

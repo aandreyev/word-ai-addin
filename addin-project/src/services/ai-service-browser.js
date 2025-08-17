@@ -7,6 +7,7 @@
 import { AnalysisLogger } from './analysis-logger.js';
 import { SimpleFileLogger } from './simple-file-logger.js';
 import { DocumentService } from './document-service.js';
+import { approxTokensFromWords } from './model-utils.js';
 
 /**
  * AI Service class that handles document analysis using Gemini API
@@ -95,6 +96,22 @@ class AIService {
       
       // Prepare the analysis prompt using mapping
       const prompt = this.buildAnalysisPromptFromMapping(paragraphMapping);
+        
+        // === Token budget guard ===
+        try {
+          const docWordCount = documentText.split(/\s+/).filter(Boolean).length;
+          const estimatedInputTokens = approxTokensFromWords(docWordCount);
+          const maxOutputTokens = 2048; // keep in sync with generationConfig in callGeminiAPI
+          const TOKEN_BUDGET = 160000; // safe token budget limit
+          if (estimatedInputTokens + maxOutputTokens > TOKEN_BUDGET) {
+            const msg = `Document exceeds token budget: estimated input tokens=${estimatedInputTokens}, + output=${maxOutputTokens} > budget=${TOKEN_BUDGET}`;
+            console.warn('\u26a0\ufe0f ' + msg);
+            throw new Error(msg);
+          }
+        } catch (e) {
+          console.warn('Token budget guard check failed or document too large:', e && e.message);
+          throw e;
+        }
       
       // 🔍 DEBUG: Show the prompt
       console.log('\n🤖 AI PROMPT:');
@@ -589,8 +606,27 @@ class AIDocumentReviewService {
       throw new Error('Document has no content to analyze. Please add some text to the document.');
     }
     
-    if (nonEmptyParagraphs > 100) { // Reasonable limit for PoC
-      throw new Error(`Document has too many paragraphs (${nonEmptyParagraphs}). Please use documents with fewer than 100 paragraphs.`);
+    // Paragraph limit: configurable via window.MAX_PARAGRAPHS, localStorage.MAX_PARAGRAPHS, or process.env.MAX_PARAGRAPHS
+    // Default raised for more permissive behavior in dev (can be tightened for production)
+    const DEFAULT_PARAGRAPH_LIMIT = 1000;
+    let paragraphLimit = DEFAULT_PARAGRAPH_LIMIT;
+    try {
+      if (typeof window !== 'undefined' && window.MAX_PARAGRAPHS) {
+        paragraphLimit = Number(window.MAX_PARAGRAPHS) || paragraphLimit;
+        console.log(`Using window.MAX_PARAGRAPHS override: ${paragraphLimit}`);
+      } else if (typeof localStorage !== 'undefined' && localStorage.getItem('MAX_PARAGRAPHS')) {
+        paragraphLimit = Number(localStorage.getItem('MAX_PARAGRAPHS')) || paragraphLimit;
+        console.log(`Using localStorage MAX_PARAGRAPHS override: ${paragraphLimit}`);
+      } else if (process && process.env && process.env.MAX_PARAGRAPHS) {
+        paragraphLimit = Number(process.env.MAX_PARAGRAPHS) || paragraphLimit;
+        console.log(`Using process.env.MAX_PARAGRAPHS override: ${paragraphLimit}`);
+      }
+    } catch (e) {
+      console.warn('Failed to read paragraph limit overrides, using default:', e && e.message);
+    }
+
+    if (nonEmptyParagraphs > paragraphLimit) {
+      throw new Error(`Document has too many paragraphs (${nonEmptyParagraphs}). Please use documents with fewer than ${paragraphLimit} paragraphs.`);
     }
 
     console.log(`📊 Document analysis: ${totalParagraphs} total paragraphs, ${nonEmptyParagraphs} non-empty paragraphs`);

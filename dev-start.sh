@@ -22,15 +22,31 @@ fi
 echo -e "${BLUE}Changing to 'addin-project' directory...${NC}"
 cd addin-project || exit
 
-# The 'npm run dev' command now starts both the webpack-dev-server (with proxy)
-# and the node.js log-server in parallel.
-COMMAND="npm run dev"
+# Decide how to start dev servers. Prefer Doppler if available so secrets
+# (e.g. GEMINI_API_KEY) are injected into the environment for webpack.
+USE_DOPPLER=false
+if command -v doppler &> /dev/null && doppler me &> /dev/null; then
+    if [ -f ".doppler.yaml" ]; then
+        echo -e "${GREEN}✅ Doppler CLI found and configured. Will run dev server with Doppler.${NC}"
+        USE_DOPPLER=true
+    else
+        echo -e "${YELLOW}⚠️ Doppler CLI found but no .doppler.yaml – falling back to .env if present.${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠️ Doppler CLI not found or user not logged in. Using .env file or normal environment.${NC}"
+fi
+
+if [ "$USE_DOPPLER" = true ]; then
+    COMMAND="doppler run -- npm run dev"
+else
+    # The 'npm run dev' command starts both the webpack-dev-server and the log-server.
+    COMMAND="npm run dev"
+fi
 
 echo -e "${GREEN}Executing: $COMMAND${NC}"
 echo "--------------------------------------------------"
 
-# The exec command replaces the shell with the new process.
-# This ensures that signals like Ctrl+C are passed correctly to npm.
+# The exec command replaces the shell with the new process so signals like Ctrl+C are forwarded.
 exec $COMMAND
 
 echo "--------------------------------------------------"

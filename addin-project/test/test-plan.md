@@ -1,7 +1,7 @@
 # Comprehensive Testing Plan for Mapping Approach
 
 ## Phase 1: Document Setup
-1. **Copy test content** from `test-document-content.md` into a Word document
+1. **Copy test content** from `./test/test-document-content.md` into a Word document
 2. **Load the add-in** and verify connection
 3. **Analyze document** to verify mapping creation
 
@@ -81,6 +81,6 @@
 ✅ Console logging provides clear debugging info  
 
 ## Files Created:
-- `test-document-content.md` - Source content for Word document
-- `test-mock-responses.md` - Various mock API responses
-- `test-plan.md` - This comprehensive testing plan
+- `./test/test-document-content.md` - Source content for Word document
+- `./test/test-mock-responses.md` - Various mock API responses
+- `./test/test-plan.md` - This comprehensive testing plan

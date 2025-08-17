@@ -88,30 +88,51 @@ class SimpleFileLogger {
     const markdown = this.generateMarkdown();
     
     try {
-      console.log(`🔄 Attempting to save log via webpack proxy: ${this.logApiEndpoint}`);
-      console.log(`📊 Payload size: ${JSON.stringify({sessionId: this.sessionId, markdown: markdown}).length} characters`);
-      
-      // Save to server via webpack proxy
-      const response = await fetch(this.logApiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionId: this.sessionId,
-          markdown: markdown
-        })
-      });
+      const payload = JSON.stringify({ sessionId: this.sessionId, markdown: markdown });
+      console.log(`🔄 Attempting to save log. Payload size: ${payload.length} characters`);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`🔥 Failed to save log: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`Failed to save log: ${response.status} ${response.statusText} - ${errorText}`);
+      // Try multiple endpoints to be robust in dev (proxy may not be applied depending on origin)
+      const candidateUrls = [
+        this.logApiEndpoint, // relative '/api/save-log' (webpack proxy)
+        'http://localhost:3001/api/save-log',
+        'http://localhost:3001/save-log',
+        '/save-log'
+      ];
+
+      let lastError = null;
+      for (const url of candidateUrls) {
+        try {
+          console.log(`🔁 Trying log endpoint: ${url}`);
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload
+          });
+
+          // If we got a response but it was not OK, capture body for diagnosis
+          if (!response.ok) {
+            const text = await response.text();
+            console.warn(`⚠️ Endpoint ${url} responded ${response.status} ${response.statusText}: ${text}`);
+            lastError = new Error(`Endpoint ${url} returned ${response.status} ${response.statusText}: ${text}`);
+            continue; // try next endpoint
+          }
+
+          // Attempt to parse JSON result, but fall back if not JSON
+          let result = null;
+          try { result = await response.json(); } catch (e) { result = await response.text(); }
+          console.log(`✅ Log saved successfully via ${url}:`, result);
+          return markdown;
+        } catch (err) {
+          // Network error, CORS, or refused connection
+          console.error(`❌ Error posting to ${url}:`, err && err.message ? err.message : err);
+          lastError = err;
+          // Try next candidate
+        }
       }
 
-      const result = await response.json();
-      console.log('✅ Log saved successfully:', result);
-      return markdown;
+      // If we reach here, all endpoints failed
+      console.error('🔥 All attempts to save log failed. Last error:', lastError);
+      throw lastError || new Error('Failed to save log via any known endpoint');
 
     } catch (error) {
       console.error('🔥 Critical error saving log session:', error);
