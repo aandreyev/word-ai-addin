@@ -8,7 +8,7 @@
  */
 class SimpleFileLogger {
   constructor() {
-    this.logApiEndpoint = '/api/save-log'; // Use relative path for webpack proxy
+    this.logApiEndpoint = "/api/save-log"; // Use relative path for webpack proxy
     this.sessionId = null;
     this.analysisData = null;
   }
@@ -26,11 +26,11 @@ class SimpleFileLogger {
       suggestions: [],
       applied: false,
       stats: {
-        wordCount: documentText.split(/\s+/).filter(w => w.length > 0).length,
+        wordCount: documentText.split(/\s+/).filter((w) => w.length > 0).length,
         paragraphCount: this.extractParagraphs(documentText).length,
-      }
+      },
     };
-    
+
     console.log(`📝 Analysis session started: ${this.sessionId}`);
     return this.sessionId;
   }
@@ -43,7 +43,7 @@ class SimpleFileLogger {
    */
   recordSuggestions(suggestions, rawResponse, prompt) {
     if (!this.analysisData) {
-      console.warn('No active session - call startSession first');
+      console.warn("No active session - call startSession first");
       return;
     }
 
@@ -59,7 +59,7 @@ class SimpleFileLogger {
    */
   markApplied(appliedCount) {
     if (!this.analysisData) return;
-    
+
     this.analysisData.applied = true;
     this.analysisData.appliedCount = appliedCount;
     this.analysisData.applicationTimestamp = new Date().toISOString();
@@ -71,7 +71,7 @@ class SimpleFileLogger {
    */
   getSessionContent() {
     if (!this.analysisData) {
-      return 'No analysis data available. Run an analysis first.';
+      return "No analysis data available. Run an analysis first.";
     }
     return this.generateMarkdown();
   }
@@ -82,11 +82,11 @@ class SimpleFileLogger {
    */
   async saveSession() {
     if (!this.analysisData) {
-      throw new Error('No analysis data to save');
+      throw new Error("No analysis data to save");
     }
 
     const markdown = this.generateMarkdown();
-    
+
     try {
       const payload = JSON.stringify({ sessionId: this.sessionId, markdown: markdown });
       console.log(`🔄 Attempting to save log. Payload size: ${payload.length} characters`);
@@ -94,9 +94,9 @@ class SimpleFileLogger {
       // Try multiple endpoints to be robust in dev (proxy may not be applied depending on origin)
       const candidateUrls = [
         this.logApiEndpoint, // relative '/api/save-log' (webpack proxy)
-        'http://localhost:3001/api/save-log',
-        'http://localhost:3001/save-log',
-        '/save-log'
+        "http://localhost:3001/api/save-log",
+        "http://localhost:3001/save-log",
+        "/save-log",
       ];
 
       let lastError = null;
@@ -104,22 +104,30 @@ class SimpleFileLogger {
         try {
           console.log(`🔁 Trying log endpoint: ${url}`);
           const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
           });
 
           // If we got a response but it was not OK, capture body for diagnosis
           if (!response.ok) {
             const text = await response.text();
-            console.warn(`⚠️ Endpoint ${url} responded ${response.status} ${response.statusText}: ${text}`);
-            lastError = new Error(`Endpoint ${url} returned ${response.status} ${response.statusText}: ${text}`);
+            console.warn(
+              `⚠️ Endpoint ${url} responded ${response.status} ${response.statusText}: ${text}`
+            );
+            lastError = new Error(
+              `Endpoint ${url} returned ${response.status} ${response.statusText}: ${text}`
+            );
             continue; // try next endpoint
           }
 
           // Attempt to parse JSON result, but fall back if not JSON
           let result = null;
-          try { result = await response.json(); } catch (e) { result = await response.text(); }
+          try {
+            result = await response.json();
+          } catch (e) {
+            result = await response.text();
+          }
           console.log(`✅ Log saved successfully via ${url}:`, result);
           return markdown;
         } catch (err) {
@@ -131,11 +139,10 @@ class SimpleFileLogger {
       }
 
       // If we reach here, all endpoints failed
-      console.error('🔥 All attempts to save log failed. Last error:', lastError);
-      throw lastError || new Error('Failed to save log via any known endpoint');
-
+      console.error("🔥 All attempts to save log failed. Last error:", lastError);
+      throw lastError || new Error("Failed to save log via any known endpoint");
     } catch (error) {
-      console.error('🔥 Critical error saving log session:', error);
+      console.error("🔥 Critical error saving log session:", error);
       // Re-throw the error so the caller knows the save failed
       throw error;
     }
@@ -145,11 +152,11 @@ class SimpleFileLogger {
    * Fallback: output to console if server isn't available
    */
   fallbackConsoleLog(markdown) {
-    console.log('\n📄 ANALYSIS LOG (Server unavailable - copying to console):');
-    console.log('=' .repeat(60));
+    console.log("\n📄 ANALYSIS LOG (Server unavailable - copying to console):");
+    console.log("=".repeat(60));
     console.log(markdown);
-    console.log('=' .repeat(60));
-    console.log('💡 To save this manually, copy the above text to a .md file');
+    console.log("=".repeat(60));
+    console.log("💡 To save this manually, copy the above text to a .md file");
   }
 
   /**
@@ -159,7 +166,7 @@ class SimpleFileLogger {
   generateMarkdown() {
     const data = this.analysisData;
     const date = new Date(data.timestamp).toLocaleString();
-    
+
     let markdown = `# AI Document Analysis Report
 
 ## Session Information
@@ -187,8 +194,8 @@ The following immutable paragraph references were captured during the two-phase 
 - **Word API ID**: \`${ref.uniqueLocalId}\`
 - **Reference Hash**: \`${ref.contentHash}\` *(Legacy)*
 - **Word Count**: ${ref.wordCount}
-- **Is List Item**: ${ref.isListItem ? 'Yes' : 'No'}
-- **Is Empty**: ${ref.isEmpty ? 'Yes' : 'No'}
+- **Is List Item**: ${ref.isListItem ? "Yes" : "No"}
+- **Is Empty**: ${ref.isEmpty ? "Yes" : "No"}
 - **Preview**: "${ref.text}"
 
 `;
@@ -203,14 +210,14 @@ The following immutable paragraph references were captured during the two-phase 
     const paragraphChanges = {};
     data.suggestions.forEach((suggestion) => {
       let targetParagraph;
-      if (suggestion.action === 'insert') {
+      if (suggestion.action === "insert") {
         // Use the new field name for insert actions
         targetParagraph = suggestion.afterSequentialNumber || suggestion.after_index;
       } else {
         // Use the new field name for other actions
         targetParagraph = suggestion.sequentialNumber || suggestion.index;
       }
-      
+
       if (!paragraphChanges[targetParagraph]) {
         paragraphChanges[targetParagraph] = [];
       }
@@ -220,27 +227,30 @@ The following immutable paragraph references were captured during the two-phase 
     if (Object.keys(paragraphChanges).length === 0) {
       markdown += `*No changes proposed.*\n\n`;
     } else {
-      Object.keys(paragraphChanges).sort((a, b) => parseInt(a) - parseInt(b)).forEach(sequentialNumber => {
-        const changes = paragraphChanges[sequentialNumber];
-        
-        markdown += `### Sequential ${sequentialNumber}`;
-        markdown += `\n`;
-        
-        changes.forEach((change, idx) => {
-          const actionLabel = {
-            'modify': '✏️ Modify',
-            'insert': '➕ Insert',
-            'delete': '🗑️ Delete',
-            'move': '↔️ Move'
-          }[change.action] || change.action;
-          
-          markdown += `- **${actionLabel}**: ${change.instruction}\n`;
-          if (change.reason) {
-            markdown += `  - *Reason*: ${change.reason}\n`;
-          }
+      Object.keys(paragraphChanges)
+        .sort((a, b) => parseInt(a) - parseInt(b))
+        .forEach((sequentialNumber) => {
+          const changes = paragraphChanges[sequentialNumber];
+
+          markdown += `### Sequential ${sequentialNumber}`;
+          markdown += `\n`;
+
+          changes.forEach((change, idx) => {
+            const actionLabel =
+              {
+                modify: "✏️ Modify",
+                insert: "➕ Insert",
+                delete: "🗑️ Delete",
+                move: "↔️ Move",
+              }[change.action] || change.action;
+
+            markdown += `- **${actionLabel}**: ${change.instruction}\n`;
+            if (change.reason) {
+              markdown += `  - *Reason*: ${change.reason}\n`;
+            }
+          });
+          markdown += `\n`;
         });
-        markdown += `\n`;
-      });
     }
 
     // Add application results if available
@@ -271,9 +281,10 @@ The following immutable paragraph references were captured during the two-phase 
    * @returns {Array} - Array of paragraph strings
    */
   extractParagraphs(text) {
-    return text.split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
+    return text
+      .split("\n")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
   }
 
   /**
@@ -281,7 +292,7 @@ The following immutable paragraph references were captured during the two-phase 
    * @returns {string} - Session ID
    */
   generateSessionId() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const random = Math.random().toString(36).substring(2, 8);
     return `${timestamp}-${random}`;
   }
@@ -292,14 +303,14 @@ The following immutable paragraph references were captured during the two-phase 
    */
   static async listLogs() {
     try {
-      const response = await fetch('http://localhost:3001/api/logs');
+      const response = await fetch("http://localhost:3001/api/logs");
       if (response.ok) {
         return await response.json();
       }
-      console.error('Failed to fetch logs from server');
+      console.error("Failed to fetch logs from server");
       return [];
     } catch (error) {
-      console.error('Error fetching logs:', error);
+      console.error("Error fetching logs:", error);
       return [];
     }
   }
@@ -310,12 +321,14 @@ The following immutable paragraph references were captured during the two-phase 
    */
   recordParagraphReferences(referenceInfo) {
     if (!this.analysisData) {
-      console.warn('No active session - call startSession first');
+      console.warn("No active session - call startSession first");
       return;
     }
 
     this.analysisData.paragraphReferences = referenceInfo;
-    console.log(`📝 Recorded ${referenceInfo.length} paragraph references for session ${this.sessionId}`);
+    console.log(
+      `📝 Recorded ${referenceInfo.length} paragraph references for session ${this.sessionId}`
+    );
   }
 }
 

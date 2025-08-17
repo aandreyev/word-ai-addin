@@ -8,7 +8,7 @@
  */
 class AnalysisLogger {
   constructor() {
-    this.logDirectory = '/tmp/word-addin-logs'; // In production, this would be configurable
+    this.logDirectory = "/tmp/word-addin-logs"; // In production, this would be configurable
     this.sessionId = null;
     this.analysisData = null;
   }
@@ -26,11 +26,11 @@ class AnalysisLogger {
       suggestions: [],
       applied: false,
       stats: {
-        wordCount: documentText.split(/\s+/).filter(w => w.length > 0).length,
+        wordCount: documentText.split(/\s+/).filter((w) => w.length > 0).length,
         paragraphCount: this.extractParagraphs(documentText).length,
-      }
+      },
     };
-    
+
     console.log(`📝 Analysis session started: ${this.sessionId}`);
     return this.sessionId;
   }
@@ -43,7 +43,7 @@ class AnalysisLogger {
    */
   recordSuggestions(suggestions, rawResponse, prompt) {
     if (!this.analysisData) {
-      console.warn('No active session - call startSession first');
+      console.warn("No active session - call startSession first");
       return;
     }
 
@@ -59,7 +59,7 @@ class AnalysisLogger {
    */
   markApplied(appliedCount) {
     if (!this.analysisData) return;
-    
+
     this.analysisData.applied = true;
     this.analysisData.appliedCount = appliedCount;
     this.analysisData.applicationTimestamp = new Date().toISOString();
@@ -72,24 +72,26 @@ class AnalysisLogger {
    */
   async saveSession(autoDownload = true) {
     if (!this.analysisData) {
-      throw new Error('No analysis data to save');
+      throw new Error("No analysis data to save");
     }
 
     const markdown = this.generateMarkdown();
-    
+
     // Save to browser's localStorage for persistence
     this.saveToLocalStorage(markdown);
-    
+
     // Automatically download the markdown file
     if (autoDownload) {
       this.downloadMarkdown(markdown);
     }
-    
+
     // Also log to console (shortened version)
-    console.log('💾 Analysis session saved and downloaded!');
+    console.log("💾 Analysis session saved and downloaded!");
     console.log(`📄 File: analysis-${this.sessionId}.md`);
-    console.log(`📊 ${this.analysisData.stats.wordCount} words, ${this.analysisData.suggestions.length} suggestions`);
-    
+    console.log(
+      `📊 ${this.analysisData.stats.wordCount} words, ${this.analysisData.suggestions.length} suggestions`
+    );
+
     return markdown;
   }
 
@@ -98,60 +100,59 @@ class AnalysisLogger {
    * @param {string} markdown - The markdown content to download
    */
   downloadMarkdown(markdown) {
-    console.log('🔍 Starting downloadMarkdown function...');
-    
+    console.log("🔍 Starting downloadMarkdown function...");
+
     try {
       // Create a blob with the markdown content
-      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-      console.log('✅ Created blob:', blob.size, 'bytes');
-      
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      console.log("✅ Created blob:", blob.size, "bytes");
+
       // Create a download URL
       const url = URL.createObjectURL(blob);
-      console.log('✅ Created URL:', url);
-      
+      console.log("✅ Created URL:", url);
+
       // Create a temporary download link
-      const downloadLink = document.createElement('a');
+      const downloadLink = document.createElement("a");
       downloadLink.href = url;
       downloadLink.download = `analysis-${this.sessionId}.md`;
-      downloadLink.style.display = 'none';
-      
-      console.log('✅ Created download link:', {
+      downloadLink.style.display = "none";
+
+      console.log("✅ Created download link:", {
         href: downloadLink.href,
-        download: downloadLink.download
+        download: downloadLink.download,
       });
-      
+
       // Add to DOM, click, and remove
       document.body.appendChild(downloadLink);
-      console.log('✅ Added link to DOM');
-      
+      console.log("✅ Added link to DOM");
+
       downloadLink.click();
-      console.log('✅ Clicked download link');
-      
+      console.log("✅ Clicked download link");
+
       document.body.removeChild(downloadLink);
-      console.log('✅ Removed link from DOM');
-      
+      console.log("✅ Removed link from DOM");
+
       // Clean up the URL
       setTimeout(() => URL.revokeObjectURL(url), 100);
-      
+
       console.log(`📥 Downloaded: analysis-${this.sessionId}.md`);
-      console.log('📁 File should be in your Downloads folder');
-      
+      console.log("📁 File should be in your Downloads folder");
     } catch (error) {
-      console.error('❌ Failed to download markdown file:', error);
-      console.log('💾 Fallback: Analysis saved to localStorage only');
-      
+      console.error("❌ Failed to download markdown file:", error);
+      console.log("💾 Fallback: Analysis saved to localStorage only");
+
       // Alternative approach - try opening in new window
       try {
-        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+        const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
         const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, '_blank');
+        const newWindow = window.open(url, "_blank");
         if (newWindow) {
-          console.log('📄 Opened markdown in new window - you can save it manually');
+          console.log("📄 Opened markdown in new window - you can save it manually");
         } else {
-          console.log('❌ Unable to open new window - popup blocked?');
+          console.log("❌ Unable to open new window - popup blocked?");
         }
       } catch (altError) {
-        console.error('❌ Alternative approach also failed:', altError);
+        console.error("❌ Alternative approach also failed:", altError);
       }
     }
   }
@@ -163,7 +164,7 @@ class AnalysisLogger {
   generateMarkdown() {
     const data = this.analysisData;
     const date = new Date(data.timestamp).toLocaleString();
-    
+
     let markdown = `# AI Document Analysis Report
 
 ## Session Information
@@ -185,12 +186,12 @@ ${JSON.stringify(data.suggestions, null, 2)}
     const paragraphChanges = {};
     data.suggestions.forEach((suggestion) => {
       let targetParagraph;
-      if (suggestion.action === 'insert') {
+      if (suggestion.action === "insert") {
         targetParagraph = suggestion.after_index;
       } else {
         targetParagraph = suggestion.index;
       }
-      
+
       if (!paragraphChanges[targetParagraph]) {
         paragraphChanges[targetParagraph] = [];
       }
@@ -200,25 +201,28 @@ ${JSON.stringify(data.suggestions, null, 2)}
     if (Object.keys(paragraphChanges).length === 0) {
       markdown += `*No changes proposed.*\n\n`;
     } else {
-      Object.keys(paragraphChanges).sort((a, b) => parseInt(a) - parseInt(b)).forEach(paragraphIndex => {
-        const changes = paragraphChanges[paragraphIndex];
-        markdown += `### Paragraph ${parseInt(paragraphIndex) + 1}\n`;
-        
-        changes.forEach((change, idx) => {
-          const actionLabel = {
-            'modify': '✏️ Modify',
-            'insert': '➕ Insert',
-            'delete': '🗑️ Delete',
-            'move': '↔️ Move'
-          }[change.action] || change.action;
-          
-          markdown += `- **${actionLabel}**: ${change.instruction}\n`;
-          if (change.reason) {
-            markdown += `  - *Reason*: ${change.reason}\n`;
-          }
+      Object.keys(paragraphChanges)
+        .sort((a, b) => parseInt(a) - parseInt(b))
+        .forEach((paragraphIndex) => {
+          const changes = paragraphChanges[paragraphIndex];
+          markdown += `### Paragraph ${parseInt(paragraphIndex) + 1}\n`;
+
+          changes.forEach((change, idx) => {
+            const actionLabel =
+              {
+                modify: "✏️ Modify",
+                insert: "➕ Insert",
+                delete: "🗑️ Delete",
+                move: "↔️ Move",
+              }[change.action] || change.action;
+
+            markdown += `- **${actionLabel}**: ${change.instruction}\n`;
+            if (change.reason) {
+              markdown += `  - *Reason*: ${change.reason}\n`;
+            }
+          });
+          markdown += `\n`;
         });
-        markdown += `\n`;
-      });
     }
 
     // Add application results if available
@@ -249,9 +253,10 @@ ${JSON.stringify(data.suggestions, null, 2)}
    * @returns {Array} - Array of paragraph strings
    */
   extractParagraphs(text) {
-    return text.split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
+    return text
+      .split("\n")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
   }
 
   /**
@@ -259,7 +264,7 @@ ${JSON.stringify(data.suggestions, null, 2)}
    * @returns {string} - Session ID
    */
   generateSessionId() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const random = Math.random().toString(36).substring(2, 8);
     return `analysis-${timestamp}-${random}`;
   }
@@ -272,20 +277,20 @@ ${JSON.stringify(data.suggestions, null, 2)}
     try {
       const key = `word-addin-analysis-${this.sessionId}`;
       localStorage.setItem(key, markdown);
-      
+
       // Also maintain a list of all sessions
-      const sessions = JSON.parse(localStorage.getItem('word-addin-sessions') || '[]');
+      const sessions = JSON.parse(localStorage.getItem("word-addin-sessions") || "[]");
       sessions.push({
         sessionId: this.sessionId,
         timestamp: this.analysisData.timestamp,
         wordCount: this.analysisData.stats.wordCount,
-        suggestionCount: this.analysisData.suggestions.length
+        suggestionCount: this.analysisData.suggestions.length,
       });
-      localStorage.setItem('word-addin-sessions', JSON.stringify(sessions));
-      
+      localStorage.setItem("word-addin-sessions", JSON.stringify(sessions));
+
       console.log(`💾 Session saved to localStorage: ${key}`);
     } catch (error) {
-      console.warn('Failed to save to localStorage:', error);
+      console.warn("Failed to save to localStorage:", error);
     }
   }
 
@@ -295,9 +300,9 @@ ${JSON.stringify(data.suggestions, null, 2)}
    */
   static getSavedSessions() {
     try {
-      return JSON.parse(localStorage.getItem('word-addin-sessions') || '[]');
+      return JSON.parse(localStorage.getItem("word-addin-sessions") || "[]");
     } catch (error) {
-      console.warn('Failed to load sessions from localStorage:', error);
+      console.warn("Failed to load sessions from localStorage:", error);
       return [];
     }
   }
@@ -311,7 +316,7 @@ ${JSON.stringify(data.suggestions, null, 2)}
     try {
       return localStorage.getItem(`word-addin-analysis-${sessionId}`);
     } catch (error) {
-      console.warn('Failed to load session from localStorage:', error);
+      console.warn("Failed to load session from localStorage:", error);
       return null;
     }
   }
@@ -323,45 +328,45 @@ ${JSON.stringify(data.suggestions, null, 2)}
   static downloadAllSessions() {
     const sessions = AnalysisLogger.getSavedSessions();
     let downloadCount = 0;
-    
+
     console.log(`📥 Starting download of ${sessions.length} analysis sessions...`);
-    
+
     sessions.forEach((session, index) => {
       const markdown = localStorage.getItem(`word-addin-analysis-${session.sessionId}`);
       if (markdown) {
         // Add a small delay between downloads to avoid browser blocking
         setTimeout(() => {
           try {
-            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+            const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            const downloadLink = document.createElement('a');
+            const downloadLink = document.createElement("a");
             downloadLink.href = url;
             downloadLink.download = `analysis-${session.sessionId}.md`;
-            downloadLink.style.display = 'none';
-            
+            downloadLink.style.display = "none";
+
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
-            
+
             setTimeout(() => URL.revokeObjectURL(url), 100);
-            
+
             console.log(`📄 Downloaded ${index + 1}/${sessions.length}: ${session.sessionId}`);
           } catch (error) {
             console.error(`Failed to download session ${session.sessionId}:`, error);
           }
         }, index * 300); // 300ms delay between downloads
-        
+
         downloadCount++;
       }
     });
-    
+
     if (downloadCount > 0) {
       console.log(`✅ Initiated download of ${downloadCount} analysis sessions`);
-      console.log('📁 Check your Downloads folder for the markdown files');
+      console.log("📁 Check your Downloads folder for the markdown files");
     } else {
-      console.log('❌ No sessions found to download');
+      console.log("❌ No sessions found to download");
     }
-    
+
     return downloadCount;
   }
 
@@ -371,12 +376,12 @@ ${JSON.stringify(data.suggestions, null, 2)}
    */
   static downloadCombinedReport() {
     const sessions = AnalysisLogger.getSavedSessions();
-    
+
     if (sessions.length === 0) {
-      console.log('❌ No sessions found to include in combined report');
+      console.log("❌ No sessions found to include in combined report");
       return false;
     }
-    
+
     let combinedMarkdown = `# Combined AI Document Analysis Report
 
 Generated: ${new Date().toLocaleString()}
@@ -385,39 +390,40 @@ Total Sessions: ${sessions.length}
 ---
 
 `;
-    
+
     sessions.forEach((session, index) => {
       const markdown = localStorage.getItem(`word-addin-analysis-${session.sessionId}`);
       if (markdown) {
         combinedMarkdown += `\n## Session ${index + 1}: ${session.sessionId}\n\n`;
-        combinedMarkdown += markdown.replace(/^# AI Document Analysis Report/, '### Analysis Details');
-        combinedMarkdown += '\n\n---\n\n';
+        combinedMarkdown += markdown.replace(
+          /^# AI Document Analysis Report/,
+          "### Analysis Details"
+        );
+        combinedMarkdown += "\n\n---\n\n";
       }
     });
-    
+
     try {
-      const blob = new Blob([combinedMarkdown], { type: 'text/markdown;charset=utf-8' });
+      const blob = new Blob([combinedMarkdown], { type: "text/markdown;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
+      const downloadLink = document.createElement("a");
       downloadLink.href = url;
-      downloadLink.download = `combined-analysis-report-${new Date().toISOString().split('T')[0]}.md`;
-      downloadLink.style.display = 'none';
-      
+      downloadLink.download = `combined-analysis-report-${new Date().toISOString().split("T")[0]}.md`;
+      downloadLink.style.display = "none";
+
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       setTimeout(() => URL.revokeObjectURL(url), 100);
-      
+
       console.log(`📥 Downloaded combined report with ${sessions.length} sessions`);
       return true;
-      
     } catch (error) {
-      console.error('Failed to download combined report:', error);
+      console.error("Failed to download combined report:", error);
       return false;
     }
   }
-
 }
 
 // Export for use in other modules

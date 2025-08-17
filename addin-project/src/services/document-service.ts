@@ -1,4 +1,4 @@
-import { IDocumentService, DocumentSnapshot } from '../types/interfaces';
+import { IDocumentService, DocumentSnapshot } from "../types/interfaces";
 
 /**
  * Service for managing Word document operations
@@ -17,18 +17,22 @@ export class DocumentService implements IDocumentService {
         try {
           // Get the document body
           const body = context.document.body;
-          
+
           // Load the text property
-          body.load('text');
-          
+          body.load("text");
+
           // Sync to get the actual content
           await context.sync();
-          
+
           // Return the plain text
           resolve(body.text);
         } catch (error) {
-          console.error('Error extracting document text:', error);
-          reject(new Error('Unable to access document content. Please ensure the document is not locked or corrupted.'));
+          console.error("Error extracting document text:", error);
+          reject(
+            new Error(
+              "Unable to access document content. Please ensure the document is not locked or corrupted."
+            )
+          );
         }
       });
     });
@@ -45,23 +49,23 @@ export class DocumentService implements IDocumentService {
         try {
           // Get all paragraphs in the document
           const paragraphs = context.document.body.paragraphs;
-          
+
           // Load the text property for validation
-          paragraphs.load('text');
-          
+          paragraphs.load("text");
+
           // Sync to populate the collection
           await context.sync();
-          
+
           // Convert to array and return the references
           const paragraphArray: Word.Paragraph[] = [];
           for (let i = 0; i < paragraphs.items.length; i++) {
             paragraphArray.push(paragraphs.items[i]);
           }
-          
+
           resolve(paragraphArray);
         } catch (error) {
-          console.error('Error creating paragraph snapshot:', error);
-          reject(new Error('Unable to access document paragraphs.'));
+          console.error("Error creating paragraph snapshot:", error);
+          reject(new Error("Unable to access document paragraphs."));
         }
       });
     });
@@ -76,23 +80,23 @@ export class DocumentService implements IDocumentService {
       Word.run(async (context) => {
         try {
           const body = context.document.body;
-          
+
           // Load the text to calculate word count
-          body.load('text');
+          body.load("text");
           await context.sync();
-          
+
           // Simple word count calculation
           const text = body.text.trim();
           if (!text) {
             resolve(0);
             return;
           }
-          
+
           const wordCount = text.split(/\s+/).length;
           resolve(wordCount);
         } catch (error) {
-          console.error('Error getting word count:', error);
-          reject(new Error('Unable to calculate document word count.'));
+          console.error("Error getting word count:", error);
+          reject(new Error("Unable to calculate document word count."));
         }
       });
     });
@@ -117,12 +121,12 @@ export class DocumentService implements IDocumentService {
         try {
           // Enable track changes
           context.document.changeTrackingMode = Word.ChangeTrackingMode.trackAll;
-          
+
           await context.sync();
           resolve();
         } catch (error) {
-          console.error('Error enabling track changes:', error);
-          reject(new Error('Unable to enable Track Changes.'));
+          console.error("Error enabling track changes:", error);
+          reject(new Error("Unable to enable Track Changes."));
         }
       });
     });
@@ -136,17 +140,17 @@ export class DocumentService implements IDocumentService {
     try {
       const [paragraphs, wordCount] = await Promise.all([
         this.createParagraphSnapshot(),
-        this.getWordCount()
+        this.getWordCount(),
       ]);
 
       return {
         paragraphs,
         wordCount,
-        isValid: this.validateDocumentSize(wordCount)
+        isValid: this.validateDocumentSize(wordCount),
       };
     } catch (error) {
-      console.error('Error creating document snapshot:', error);
-      throw new Error('Unable to create document snapshot.');
+      console.error("Error creating document snapshot:", error);
+      throw new Error("Unable to create document snapshot.");
     }
   }
 
@@ -160,17 +164,17 @@ export class DocumentService implements IDocumentService {
       Word.run(async (context) => {
         try {
           // Load the current text for reference
-          paragraph.load('text');
+          paragraph.load("text");
           await context.sync();
-          
+
           // Replace the paragraph content (will show as tracked change)
           paragraph.insertText(newText, Word.InsertLocation.replace);
-          
+
           await context.sync();
           resolve();
         } catch (error) {
-          console.error('Error modifying paragraph:', error);
-          reject(new Error('Unable to modify paragraph.'));
+          console.error("Error modifying paragraph:", error);
+          reject(new Error("Unable to modify paragraph."));
         }
       });
     });
@@ -193,12 +197,12 @@ export class DocumentService implements IDocumentService {
             // Insert after the specified paragraph
             afterParagraph.insertParagraph(text, Word.InsertLocation.after);
           }
-          
+
           await context.sync();
           resolve();
         } catch (error) {
-          console.error('Error inserting paragraph:', error);
-          reject(new Error('Unable to insert paragraph.'));
+          console.error("Error inserting paragraph:", error);
+          reject(new Error("Unable to insert paragraph."));
         }
       });
     });
@@ -216,8 +220,8 @@ export class DocumentService implements IDocumentService {
           await context.sync();
           resolve();
         } catch (error) {
-          console.error('Error deleting paragraph:', error);
-          reject(new Error('Unable to delete paragraph.'));
+          console.error("Error deleting paragraph:", error);
+          reject(new Error("Unable to delete paragraph."));
         }
       });
     });
@@ -231,12 +235,12 @@ export class DocumentService implements IDocumentService {
     return Word.run(async (context) => {
       try {
         const body = context.document.body;
-        body.insertText('\n--- AI ANALYSIS LOG DATA ---\n', Word.InsertLocation.end);
+        body.insertText("\n--- AI ANALYSIS LOG DATA ---\n", Word.InsertLocation.end);
         body.insertText(logContent, Word.InsertLocation.end);
-        body.insertText('\n--- END OF LOG ---\n', Word.InsertLocation.end);
+        body.insertText("\n--- END OF LOG ---\n", Word.InsertLocation.end);
         await context.sync();
       } catch (error) {
-        console.error('Error appending log data to document:', error);
+        console.error("Error appending log data to document:", error);
         // Don't reject promise, as this is a non-critical logging operation
       }
     });

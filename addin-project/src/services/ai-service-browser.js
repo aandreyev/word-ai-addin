@@ -4,18 +4,18 @@
  */
 
 // Import analysis logger
-import { AnalysisLogger } from './analysis-logger.js';
-import { SimpleFileLogger } from './simple-file-logger.js';
-import { DocumentService } from './document-service.js';
-import { approxTokensFromWords } from './model-utils.js';
+import { AnalysisLogger } from "./analysis-logger.js";
+import { SimpleFileLogger } from "./simple-file-logger.js";
+import { DocumentService } from "./document-service.js";
+import { approxTokensFromWords } from "./model-utils.js";
 
 /**
  * AI Service class that handles document analysis using Gemini API
  */
 class AIService {
   constructor() {
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-    this.modelName = 'gemini-1.5-flash';
+    this.baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
+    this.modelName = "gemini-1.5-flash";
     this.logger = new AnalysisLogger();
     this.fileLogger = new SimpleFileLogger();
     this.documentService = new DocumentService();
@@ -28,28 +28,28 @@ class AIService {
    */
   getApiKey() {
     // First check for API key in localStorage
-    const storedKey = localStorage.getItem('GEMINI_API_KEY');
-    if (storedKey && storedKey !== 'GEMINI_API_KEY_PLACEHOLDER') {
-      console.log('🔑 Using Gemini API key from localStorage');
+    const storedKey = localStorage.getItem("GEMINI_API_KEY");
+    if (storedKey && storedKey !== "GEMINI_API_KEY_PLACEHOLDER") {
+      console.log("🔑 Using Gemini API key from localStorage");
       return storedKey;
     }
-    
+
     // Check for environment variable (Doppler injected at build time)
     const envKey = process.env.GEMINI_API_KEY;
-    if (envKey && envKey !== 'API_KEY_NOT_SET' && envKey !== 'undefined') {
-      console.log('🔑 Using Gemini API key from environment variable');
+    if (envKey && envKey !== "API_KEY_NOT_SET" && envKey !== "undefined") {
+      console.log("🔑 Using Gemini API key from environment variable");
       return envKey;
     }
-    
+
     // Check for global variable
-    if (typeof window !== 'undefined' && window.GEMINI_API_KEY) {
-      console.log('🔑 Using Gemini API key from window variable');
+    if (typeof window !== "undefined" && window.GEMINI_API_KEY) {
+      console.log("🔑 Using Gemini API key from window variable");
       return window.GEMINI_API_KEY;
     }
-    
+
     // No real API key found
-    console.warn('⚠️ No Gemini API key found - will use mock responses');
-    return 'GEMINI_API_KEY_PLACEHOLDER';
+    console.warn("⚠️ No Gemini API key found - will use mock responses");
+    return "GEMINI_API_KEY_PLACEHOLDER";
   }
 
   /**
@@ -58,10 +58,10 @@ class AIService {
    */
   setApiKey(apiKey) {
     if (apiKey && apiKey.trim()) {
-      localStorage.setItem('GEMINI_API_KEY', apiKey.trim());
-      console.log('✅ Gemini API key updated');
+      localStorage.setItem("GEMINI_API_KEY", apiKey.trim());
+      console.log("✅ Gemini API key updated");
     } else {
-      console.error('❌ Invalid API key provided');
+      console.error("❌ Invalid API key provided");
     }
   }
 
@@ -71,7 +71,7 @@ class AIService {
    */
   hasValidApiKey() {
     const key = this.getApiKey();
-    return key && key !== 'GEMINI_API_KEY_PLACEHOLDER';
+    return key && key !== "GEMINI_API_KEY_PLACEHOLDER";
   }
 
   /**
@@ -82,87 +82,89 @@ class AIService {
   async analyzeDocumentFromMapping(paragraphMapping) {
     try {
       // 🔍 DEBUG: Start logging session (both loggers)
-      const documentText = paragraphMapping.map(m => m.content).join('\n\n');
+      const documentText = paragraphMapping.map((m) => m.content).join("\n\n");
       const sessionId = this.logger.startSession(documentText);
       const fileSessionId = this.fileLogger.startSession(documentText);
       console.log(`📝 Started analysis session: ${sessionId}`);
       console.log(`📁 Started file logging session: ${fileSessionId}`);
-      
+
       // Record the paragraph mapping in the logger
       console.log(`🎯 Analyzing ${paragraphMapping.length} non-empty paragraphs:`);
-      paragraphMapping.forEach(mapping => {
-        console.log(`   Sequential ${mapping.sequentialNumber}: [Word Index ${mapping.wordIndex}] "${mapping.content.substring(0, 50)}..."`);
+      paragraphMapping.forEach((mapping) => {
+        console.log(
+          `   Sequential ${mapping.sequentialNumber}: [Word Index ${mapping.wordIndex}] "${mapping.content.substring(0, 50)}..."`
+        );
       });
-      
+
       // Prepare the analysis prompt using mapping
       const prompt = this.buildAnalysisPromptFromMapping(paragraphMapping);
-        
-        // === Token budget guard ===
-        try {
-          const docWordCount = documentText.split(/\s+/).filter(Boolean).length;
-          const estimatedInputTokens = approxTokensFromWords(docWordCount);
-          const maxOutputTokens = 2048; // keep in sync with generationConfig in callGeminiAPI
-          const TOKEN_BUDGET = 160000; // safe token budget limit
-          if (estimatedInputTokens + maxOutputTokens > TOKEN_BUDGET) {
-            const msg = `Document exceeds token budget: estimated input tokens=${estimatedInputTokens}, + output=${maxOutputTokens} > budget=${TOKEN_BUDGET}`;
-            console.warn('\u26a0\ufe0f ' + msg);
-            throw new Error(msg);
-          }
-        } catch (e) {
-          console.warn('Token budget guard check failed or document too large:', e && e.message);
-          throw e;
+
+      // === Token budget guard ===
+      try {
+        const docWordCount = documentText.split(/\s+/).filter(Boolean).length;
+        const estimatedInputTokens = approxTokensFromWords(docWordCount);
+        const maxOutputTokens = 2048; // keep in sync with generationConfig in callGeminiAPI
+        const TOKEN_BUDGET = 160000; // safe token budget limit
+        if (estimatedInputTokens + maxOutputTokens > TOKEN_BUDGET) {
+          const msg = `Document exceeds token budget: estimated input tokens=${estimatedInputTokens}, + output=${maxOutputTokens} > budget=${TOKEN_BUDGET}`;
+          console.warn("\u26a0\ufe0f " + msg);
+          throw new Error(msg);
         }
-      
+      } catch (e) {
+        console.warn("Token budget guard check failed or document too large:", e && e.message);
+        throw e;
+      }
+
       // 🔍 DEBUG: Show the prompt
-      console.log('\n🤖 AI PROMPT:');
-      console.log('-' .repeat(40));
+      console.log("\n🤖 AI PROMPT:");
+      console.log("-".repeat(40));
       console.log(prompt);
-      console.log('-' .repeat(40));
-      
+      console.log("-".repeat(40));
+
       // Call Gemini API
       const response = await this.callGeminiAPI(prompt);
-      
+
       // 🔍 DEBUG: Show raw response
-      console.log('\n📥 RAW AI RESPONSE:');
-      console.log('-' .repeat(40));
+      console.log("\n📥 RAW AI RESPONSE:");
+      console.log("-".repeat(40));
       console.log(response);
-      console.log('-' .repeat(40));
-      
+      console.log("-".repeat(40));
+
       // Parse the response into structured suggestions with mapping validation
       const suggestions = this.parseAISuggestionsWithMapping(response, paragraphMapping);
-      
+
       // 🔍 DEBUG: Record suggestions in both loggers
       this.logger.recordSuggestions(suggestions, response, prompt);
       this.fileLogger.recordSuggestions(suggestions, response, prompt);
-      
+
       // 🔍 DEBUG: Show detailed suggestion breakdown
-      console.log('\n📋 PARSED SUGGESTIONS - DETAILED BREAKDOWN:');
-      console.log('=' .repeat(60));
+      console.log("\n📋 PARSED SUGGESTIONS - DETAILED BREAKDOWN:");
+      console.log("=".repeat(60));
       console.log(`🔢 Total Suggestions Generated: ${suggestions.length}`);
-      console.log('=' .repeat(60));
-      
+      console.log("=".repeat(60));
+
       suggestions.forEach((suggestion, index) => {
         console.log(`\n📌 SUGGESTION #${index + 1}:`);
         console.log(`   🎯 Action: ${suggestion.action.toUpperCase()}`);
-        
-        if (suggestion.action === 'insert') {
+
+        if (suggestion.action === "insert") {
           console.log(`   📍 Insert After Sequential: ${suggestion.afterSequentialNumber}`);
         } else {
           console.log(`   📍 Target Sequential: ${suggestion.sequentialNumber}`);
         }
-        
+
         console.log(`   📝 Instruction: "${suggestion.instruction}"`);
         if (suggestion.reason) {
           console.log(`   💡 Reason: "${suggestion.reason}"`);
         }
-        
-        console.log('   🔧 COMPLETE JSON STRUCTURE:');
-        console.log('   ' + JSON.stringify(suggestion, null, 4).replace(/\n/g, '\n   '));
-        console.log('-' .repeat(50));
+
+        console.log("   🔧 COMPLETE JSON STRUCTURE:");
+        console.log("   " + JSON.stringify(suggestion, null, 4).replace(/\n/g, "\n   "));
+        console.log("-".repeat(50));
       });
-      
+
       // Show model response analysis
-      console.log('\n🧠 AI MODEL ANALYSIS SUMMARY:');
+      console.log("\n🧠 AI MODEL ANALYSIS SUMMARY:");
       console.log(`   📊 Model Used: ${this.modelName}`);
       console.log(`   🎯 Actions Distribution:`);
       const actionCounts = suggestions.reduce((acc, s) => {
@@ -172,22 +174,22 @@ class AIService {
       Object.entries(actionCounts).forEach(([action, count]) => {
         console.log(`     - ${action.toUpperCase()}: ${count} suggestions`);
       });
-      console.log('=' .repeat(60));
-      
+      console.log("=".repeat(60));
+
       // 🔍 DEBUG: Save session immediately after analysis
       try {
         await this.logger.saveSession();
         console.log(`📄 Analysis session saved to browser storage`);
       } catch (error) {
-        console.warn('Failed to save browser analysis session:', error);
+        console.warn("Failed to save browser analysis session:", error);
       }
 
       // NOTE: Log data will be appended AFTER suggestions are applied to avoid corrupting paragraph mapping
 
       return suggestions;
     } catch (error) {
-      console.error('AI analysis failed:', error);
-      throw new Error('Failed to analyze document. Please try again.');
+      console.error("AI analysis failed:", error);
+      throw new Error("Failed to analyze document. Please try again.");
     }
   }
 
@@ -198,7 +200,7 @@ class AIService {
    */
   buildAnalysisPromptFromMapping(paragraphMapping) {
     // Build paragraph reference using only sequential numbers and content
-    let paragraphReference = '';
+    let paragraphReference = "";
     paragraphMapping.forEach((mapping) => {
       paragraphReference += `Paragraph ${mapping.sequentialNumber}: "${mapping.content}"\n`;
     });
@@ -249,31 +251,35 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
    */
   async callGeminiAPI(prompt) {
     const apiKey = this.getApiKey();
-    
+
     // Check if we have a real API key - if not, use fallback
-    if (!apiKey || apiKey === 'GEMINI_API_KEY_PLACEHOLDER') {
-      console.warn('⚠️ No Gemini API key found. Using fallback mock response.');
-      console.log('💡 To use real Gemini API:');
-      console.log('   1. Get an API key from https://ai.google.dev/');
+    if (!apiKey || apiKey === "GEMINI_API_KEY_PLACEHOLDER") {
+      console.warn("⚠️ No Gemini API key found. Using fallback mock response.");
+      console.log("💡 To use real Gemini API:");
+      console.log("   1. Get an API key from https://ai.google.dev/");
       console.log('   2. Store it: localStorage.setItem("GEMINI_API_KEY", "your-actual-api-key")');
-      console.log('   3. Refresh the page to use real AI analysis');
-      
+      console.log("   3. Refresh the page to use real AI analysis");
+
       // Return mock data as fallback
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return this.getMockResponse();
     }
 
     try {
-      console.log('🌐 Making real Gemini API call...');
-      
+      console.log("🌐 Making real Gemini API call...");
+
       const url = `${this.baseUrl}/${this.modelName}:generateContent?key=${apiKey}`;
-      
+
       const requestBody = {
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
         generationConfig: {
           temperature: 0.3,
           topK: 40,
@@ -283,56 +289,60 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
         safetySettings: [
           {
             category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
           },
           {
-            category: "HARM_CATEGORY_HATE_SPEECH", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
           },
           {
             category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
           },
           {
             category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+          },
+        ],
       };
 
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ Gemini API error:', response.status, errorData);
+        console.error("❌ Gemini API error:", response.status, errorData);
         throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
       }
 
       const data = await response.json();
-      
+
       // Extract the text from Gemini's response format
-      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+      if (
+        data.candidates &&
+        data.candidates[0] &&
+        data.candidates[0].content &&
+        data.candidates[0].content.parts[0]
+      ) {
         const aiResponse = data.candidates[0].content.parts[0].text;
-        console.log('✅ Received real Gemini API response');
-        console.log('🎯 Using live AI analysis (not mock data)');
+        console.log("✅ Received real Gemini API response");
+        console.log("🎯 Using live AI analysis (not mock data)");
         return aiResponse;
       } else {
-        console.error('❌ Unexpected Gemini API response format:', data);
-        throw new Error('Unexpected response format from Gemini API');
+        console.error("❌ Unexpected Gemini API response format:", data);
+        throw new Error("Unexpected response format from Gemini API");
       }
-
     } catch (error) {
-      console.error('❌ Gemini API call failed:', error);
-      
+      console.error("❌ Gemini API call failed:", error);
+
       // Fallback to mock response if API call fails
-      console.warn('⚠️ Falling back to mock response due to API error');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn("⚠️ Falling back to mock response due to API error");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return this.getMockResponse();
     }
   }
@@ -342,8 +352,8 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
    * @returns {string} - Mock JSON response
    */
   getMockResponse() {
-    console.log('📋 Using fallback mock response (deprecated - switch to real Gemini API)');
-    
+    console.log("📋 Using fallback mock response (deprecated - switch to real Gemini API)");
+
     // Basic modify + insert response as fallback (safer than complex moves)
     return `[
       {
@@ -371,16 +381,16 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
   parseAISuggestions(response) {
     try {
       // Clean up the response (remove any markdown or extra text)
-      const cleanResponse = response.trim().replace(/```json|```/g, '');
-      
+      const cleanResponse = response.trim().replace(/```json|```/g, "");
+
       // Parse JSON
       const suggestions = JSON.parse(cleanResponse);
-      
+
       // Validate and filter suggestions
       return this.validateSuggestions(suggestions);
     } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      
+      console.error("Failed to parse AI response:", error);
+
       // Return fallback suggestions if parsing fails
       return this.getFallbackSuggestions();
     }
@@ -396,24 +406,27 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
       return this.getFallbackSuggestions();
     }
 
-    return suggestions.filter(suggestion => {
-      const hasValidAction = suggestion.action && 
-                            ['modify', 'insert', 'delete', 'move'].includes(suggestion.action);
-      const hasValidInstruction = suggestion.instruction;
-      const hasValidIndex = suggestion.index !== undefined || suggestion.after_index !== undefined;
-      
-      // For modify actions, check if replacement_text is provided
-      if (suggestion.action === 'modify' && !suggestion.replacement_text) {
-        console.warn('Modify suggestion missing replacement_text:', suggestion);
-      }
-      
-      // For insert actions, check if new_content is provided
-      if (suggestion.action === 'insert' && !suggestion.new_content) {
-        console.warn('Insert suggestion missing new_content:', suggestion);
-      }
-      
-      return hasValidAction && hasValidInstruction && hasValidIndex;
-    }).slice(0, 5); // Limit to 5 suggestions
+    return suggestions
+      .filter((suggestion) => {
+        const hasValidAction =
+          suggestion.action && ["modify", "insert", "delete", "move"].includes(suggestion.action);
+        const hasValidInstruction = suggestion.instruction;
+        const hasValidIndex =
+          suggestion.index !== undefined || suggestion.after_index !== undefined;
+
+        // For modify actions, check if replacement_text is provided
+        if (suggestion.action === "modify" && !suggestion.replacement_text) {
+          console.warn("Modify suggestion missing replacement_text:", suggestion);
+        }
+
+        // For insert actions, check if new_content is provided
+        if (suggestion.action === "insert" && !suggestion.new_content) {
+          console.warn("Insert suggestion missing new_content:", suggestion);
+        }
+
+        return hasValidAction && hasValidInstruction && hasValidIndex;
+      })
+      .slice(0, 5); // Limit to 5 suggestions
   }
 
   /**
@@ -426,16 +439,18 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
         action: "modify",
         index: 0,
         instruction: "Review the opening paragraph for clarity and impact.",
-        replacement_text: "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
-        reason: "Strong openings engage readers more effectively"
+        replacement_text:
+          "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
+        reason: "Strong openings engage readers more effectively",
       },
       {
         action: "insert",
         after_index: 0,
         instruction: "Consider adding a topic sentence to introduce the main theme.",
-        new_content: "Let's explore how artificial intelligence can enhance your writing through intelligent suggestions.",
-        reason: "Clear topic sentences help readers understand document structure"
-      }
+        new_content:
+          "Let's explore how artificial intelligence can enhance your writing through intelligent suggestions.",
+        reason: "Clear topic sentences help readers understand document structure",
+      },
     ];
   }
 
@@ -448,16 +463,16 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
   parseAISuggestionsWithMapping(response, paragraphMapping) {
     try {
       // Clean up the response (remove any markdown or extra text)
-      const cleanResponse = response.trim().replace(/```json|```/g, '');
-      
+      const cleanResponse = response.trim().replace(/```json|```/g, "");
+
       // Parse JSON
       const suggestions = JSON.parse(cleanResponse);
-      
+
       // Validate and filter suggestions with mapping
       return this.validateSuggestionsWithMapping(suggestions, paragraphMapping);
     } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      
+      console.error("Failed to parse AI response:", error);
+
       // Return fallback suggestions if parsing fails
       return this.getFallbackSuggestionsWithMapping(paragraphMapping);
     }
@@ -474,69 +489,90 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
       return this.getFallbackSuggestionsWithMapping(paragraphMapping);
     }
 
-    const maxSequentialNumber = Math.max(...paragraphMapping.map(m => m.sequentialNumber));
-    console.log(`🔍 Validating suggestions against mapping (max sequential: ${maxSequentialNumber})`);
+    const maxSequentialNumber = Math.max(...paragraphMapping.map((m) => m.sequentialNumber));
+    console.log(
+      `🔍 Validating suggestions against mapping (max sequential: ${maxSequentialNumber})`
+    );
 
-    return suggestions.filter(suggestion => {
-      const hasValidAction = suggestion.action && 
-                            ['modify', 'insert', 'delete', 'move'].includes(suggestion.action);
-      const hasValidInstruction = suggestion.instruction;
-      
-      let hasValidReference = false;
-      let sequentialNumber = null;
-      
-      // Validate sequential number references
-      if (suggestion.action === 'insert') {
-        sequentialNumber = suggestion.afterSequentialNumber;
-        hasValidReference = sequentialNumber !== undefined && 
-                           sequentialNumber >= 1 && 
-                           sequentialNumber <= maxSequentialNumber;
-        if (!hasValidReference) {
-          console.warn(`❌ Invalid afterSequentialNumber ${sequentialNumber} for insert action (max: ${maxSequentialNumber})`);
+    return suggestions
+      .filter((suggestion) => {
+        const hasValidAction =
+          suggestion.action && ["modify", "insert", "delete", "move"].includes(suggestion.action);
+        const hasValidInstruction = suggestion.instruction;
+
+        let hasValidReference = false;
+        let sequentialNumber = null;
+
+        // Validate sequential number references
+        if (suggestion.action === "insert") {
+          sequentialNumber = suggestion.afterSequentialNumber;
+          hasValidReference =
+            sequentialNumber !== undefined &&
+            sequentialNumber >= 1 &&
+            sequentialNumber <= maxSequentialNumber;
+          if (!hasValidReference) {
+            console.warn(
+              `❌ Invalid afterSequentialNumber ${sequentialNumber} for insert action (max: ${maxSequentialNumber})`
+            );
+          }
+        } else if (suggestion.action === "move") {
+          // Move actions need both source and target references
+          const sourceSequentialNumber = suggestion.sequentialNumber;
+          const toAfterSequentialNumber = suggestion.toAfterSequentialNumber;
+
+          const hasValidSource =
+            sourceSequentialNumber !== undefined &&
+            sourceSequentialNumber >= 1 &&
+            sourceSequentialNumber <= maxSequentialNumber;
+          const hasValidTarget =
+            toAfterSequentialNumber !== undefined &&
+            toAfterSequentialNumber >= 1 &&
+            toAfterSequentialNumber <= maxSequentialNumber;
+
+          hasValidReference = hasValidSource && hasValidTarget;
+          if (!hasValidSource) {
+            console.warn(
+              `❌ Invalid sequentialNumber ${sourceSequentialNumber} for move action (max: ${maxSequentialNumber})`
+            );
+          }
+          if (!hasValidTarget) {
+            console.warn(
+              `❌ Invalid toAfterSequentialNumber ${toAfterSequentialNumber} for move action (max: ${maxSequentialNumber})`
+            );
+          }
+          sequentialNumber = sourceSequentialNumber; // For logging purposes
+        } else {
+          sequentialNumber = suggestion.sequentialNumber;
+          hasValidReference =
+            sequentialNumber !== undefined &&
+            sequentialNumber >= 1 &&
+            sequentialNumber <= maxSequentialNumber;
+          if (!hasValidReference) {
+            console.warn(
+              `❌ Invalid sequentialNumber ${sequentialNumber} for ${suggestion.action} action (max: ${maxSequentialNumber})`
+            );
+          }
         }
-      } else if (suggestion.action === 'move') {
-        // Move actions need both source and target references
-        const sourceSequentialNumber = suggestion.sequentialNumber;
-        const toAfterSequentialNumber = suggestion.toAfterSequentialNumber;
-        
-        const hasValidSource = sourceSequentialNumber !== undefined && 
-                              sourceSequentialNumber >= 1 && 
-                              sourceSequentialNumber <= maxSequentialNumber;
-        const hasValidTarget = toAfterSequentialNumber !== undefined && 
-                              toAfterSequentialNumber >= 1 && 
-                              toAfterSequentialNumber <= maxSequentialNumber;
-        
-        hasValidReference = hasValidSource && hasValidTarget;
-        if (!hasValidSource) {
-          console.warn(`❌ Invalid sequentialNumber ${sourceSequentialNumber} for move action (max: ${maxSequentialNumber})`);
+
+        // For modify/insert actions, check if newContent is provided
+        if (
+          (suggestion.action === "modify" || suggestion.action === "insert") &&
+          !suggestion.newContent
+        ) {
+          console.warn(`❌ ${suggestion.action} suggestion missing newContent:`, suggestion);
+          return false;
         }
-        if (!hasValidTarget) {
-          console.warn(`❌ Invalid toAfterSequentialNumber ${toAfterSequentialNumber} for move action (max: ${maxSequentialNumber})`);
+
+        const isValid = hasValidAction && hasValidInstruction && hasValidReference;
+        if (isValid) {
+          console.log(
+            `✅ Valid ${suggestion.action} suggestion for sequential ${sequentialNumber}`
+          );
         }
-        sequentialNumber = sourceSequentialNumber; // For logging purposes
-      } else {
-        sequentialNumber = suggestion.sequentialNumber;
-        hasValidReference = sequentialNumber !== undefined && 
-                           sequentialNumber >= 1 && 
-                           sequentialNumber <= maxSequentialNumber;
-        if (!hasValidReference) {
-          console.warn(`❌ Invalid sequentialNumber ${sequentialNumber} for ${suggestion.action} action (max: ${maxSequentialNumber})`);
-        }
-      }
-      
-      // For modify/insert actions, check if newContent is provided
-      if ((suggestion.action === 'modify' || suggestion.action === 'insert') && !suggestion.newContent) {
-        console.warn(`❌ ${suggestion.action} suggestion missing newContent:`, suggestion);
-        return false;
-      }
-      
-      const isValid = hasValidAction && hasValidInstruction && hasValidReference;
-      if (isValid) {
-        console.log(`✅ Valid ${suggestion.action} suggestion for sequential ${sequentialNumber}`);
-      }
-      
-      return isValid;
-    }).slice(0, 5); // Limit to 5 suggestions
+
+        return isValid;
+      })
+      .slice(0, 5); // Limit to 5 suggestions
   }
 
   /**
@@ -548,17 +584,18 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
     if (paragraphMapping.length === 0) {
       return [];
     }
-    
+
     const firstSequential = paragraphMapping[0].sequentialNumber;
-    
+
     return [
       {
         action: "modify",
         sequentialNumber: firstSequential,
         instruction: "Review the opening paragraph for clarity and impact.",
-        newContent: "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
-        reason: "Strong openings engage readers more effectively"
-      }
+        newContent:
+          "This document could benefit from AI-powered editing suggestions for improved clarity and readability.",
+        reason: "Strong openings engage readers more effectively",
+      },
     ];
   }
 
@@ -570,13 +607,12 @@ Limit your response to the 5 most impactful suggestions. Return only the JSON ar
     try {
       const testPrompt = "Respond with only 'OK' if you can understand this message.";
       const response = await this.callGeminiAPI(testPrompt);
-      return response.toLowerCase().includes('ok');
+      return response.toLowerCase().includes("ok");
     } catch (error) {
-      console.error('AI service connection test failed:', error);
+      console.error("AI service connection test failed:", error);
       return false;
     }
   }
-
 }
 
 /**
@@ -597,47 +633,51 @@ class AIDocumentReviewService {
     // Create paragraph snapshot and mapping
     const snapshotResult = await this.documentService.createParagraphSnapshot();
     const paragraphMapping = snapshotResult.paragraphMapping;
-    
+
     // Validate document
     const totalParagraphs = snapshotResult.paragraphs.length;
     const nonEmptyParagraphs = paragraphMapping.length;
-    
+
     if (nonEmptyParagraphs === 0) {
-      throw new Error('Document has no content to analyze. Please add some text to the document.');
+      throw new Error("Document has no content to analyze. Please add some text to the document.");
     }
-    
+
     // Paragraph limit: configurable via window.MAX_PARAGRAPHS, localStorage.MAX_PARAGRAPHS, or process.env.MAX_PARAGRAPHS
     // Default raised for more permissive behavior in dev (can be tightened for production)
     const DEFAULT_PARAGRAPH_LIMIT = 1000;
     let paragraphLimit = DEFAULT_PARAGRAPH_LIMIT;
     try {
-      if (typeof window !== 'undefined' && window.MAX_PARAGRAPHS) {
+      if (typeof window !== "undefined" && window.MAX_PARAGRAPHS) {
         paragraphLimit = Number(window.MAX_PARAGRAPHS) || paragraphLimit;
         console.log(`Using window.MAX_PARAGRAPHS override: ${paragraphLimit}`);
-      } else if (typeof localStorage !== 'undefined' && localStorage.getItem('MAX_PARAGRAPHS')) {
-        paragraphLimit = Number(localStorage.getItem('MAX_PARAGRAPHS')) || paragraphLimit;
+      } else if (typeof localStorage !== "undefined" && localStorage.getItem("MAX_PARAGRAPHS")) {
+        paragraphLimit = Number(localStorage.getItem("MAX_PARAGRAPHS")) || paragraphLimit;
         console.log(`Using localStorage MAX_PARAGRAPHS override: ${paragraphLimit}`);
       } else if (process && process.env && process.env.MAX_PARAGRAPHS) {
         paragraphLimit = Number(process.env.MAX_PARAGRAPHS) || paragraphLimit;
         console.log(`Using process.env.MAX_PARAGRAPHS override: ${paragraphLimit}`);
       }
     } catch (e) {
-      console.warn('Failed to read paragraph limit overrides, using default:', e && e.message);
+      console.warn("Failed to read paragraph limit overrides, using default:", e && e.message);
     }
 
     if (nonEmptyParagraphs > paragraphLimit) {
-      throw new Error(`Document has too many paragraphs (${nonEmptyParagraphs}). Please use documents with fewer than ${paragraphLimit} paragraphs.`);
+      throw new Error(
+        `Document has too many paragraphs (${nonEmptyParagraphs}). Please use documents with fewer than ${paragraphLimit} paragraphs.`
+      );
     }
 
-    console.log(`📊 Document analysis: ${totalParagraphs} total paragraphs, ${nonEmptyParagraphs} non-empty paragraphs`);
+    console.log(
+      `📊 Document analysis: ${totalParagraphs} total paragraphs, ${nonEmptyParagraphs} non-empty paragraphs`
+    );
 
     // Get AI analysis using the mapping
     const suggestions = await this.aiService.analyzeDocumentFromMapping(paragraphMapping);
-    
+
     // Return both suggestions and mapping for later use
     return {
       suggestions: suggestions.slice(0, 5), // Limit to 5 suggestions for safety
-      paragraphMapping: paragraphMapping
+      paragraphMapping: paragraphMapping,
     };
   }
 
@@ -659,294 +699,388 @@ class AIDocumentReviewService {
    */
   async applySuggestions(suggestions, paragraphMapping) {
     let appliedCount = 0;
-    
+
     console.log(`\n🚀 STARTING MAPPING-BASED APPLICATION OF ${suggestions.length} SUGGESTIONS:`);
-    console.log('=' .repeat(60));
-    
+    console.log("=".repeat(60));
+
     try {
       // Apply all modifications in a SINGLE Word.run context using fresh paragraph references
-      const modifyActions = suggestions.filter(s => s.action === 'modify');
-      
+      const modifyActions = suggestions.filter((s) => s.action === "modify");
+
       if (modifyActions.length > 0) {
-        console.log('\n🔧 Applying ALL MODIFY actions in SINGLE Word.run context...');
-        
+        console.log("\n🔧 Applying ALL MODIFY actions in SINGLE Word.run context...");
+
         await Word.run(async (context) => {
           // Get FRESH paragraph references within this context
           const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text');
+          paragraphs.load("text");
           await context.sync();
-          
+
           console.log(`� Fresh context has ${paragraphs.items.length} paragraphs available`);
-          
+
           for (const suggestion of modifyActions) {
             try {
-              console.log(`   Modifying sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`);
-              
+              console.log(
+                `   Modifying sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`
+              );
+
               // Resolve sequential number to Word index using mapping
-              const wordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              const wordIndex = this.documentService.resolveSequentialToWordIndex(
+                suggestion.sequentialNumber,
+                paragraphMapping
+              );
               if (wordIndex === null) {
-                console.error(`   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index`);
+                console.error(
+                  `   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index`
+                );
                 continue;
               }
-              
+
               // Use fresh paragraph reference from current context
               if (wordIndex >= 0 && wordIndex < paragraphs.items.length) {
                 const paragraph = paragraphs.items[wordIndex];
-                
-                console.log(`🔍 Using fresh paragraph reference ${wordIndex} in current context...`);
+
+                console.log(
+                  `🔍 Using fresh paragraph reference ${wordIndex} in current context...`
+                );
                 console.log(`📋 Current text: "${paragraph.text.substring(0, 50)}..."`);
-                
+
                 if (suggestion.newContent) {
                   console.log(`🔄 Replacing paragraph ${wordIndex} content...`);
-                  
+
                   // Use a more reliable approach for replacing paragraph content
                   // Get the paragraph's range and replace its content
                   const range = paragraph.getRange();
                   range.insertText(suggestion.newContent, Word.InsertLocation.replace);
-                  
+
                   console.log(`✅ Modified paragraph ${wordIndex} with new content`);
                   appliedCount++;
                 } else {
-                  console.warn(`⚠️ No newContent provided for sequential ${suggestion.sequentialNumber}`);
+                  console.warn(
+                    `⚠️ No newContent provided for sequential ${suggestion.sequentialNumber}`
+                  );
                 }
               } else {
-                console.error(`❌ Invalid word index: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+                console.error(
+                  `❌ Invalid word index: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`
+                );
               }
             } catch (error) {
-              console.error(`   ❌ Failed to modify sequential ${suggestion.sequentialNumber}:`, error);
+              console.error(
+                `   ❌ Failed to modify sequential ${suggestion.sequentialNumber}:`,
+                error
+              );
             }
           }
-          
+
           // Single sync to commit all changes
           await context.sync();
           console.log(`✅ Applied ${appliedCount} modifications and synced to document`);
-          
+
           // Validate changes were applied
-          paragraphs.load('text');
+          paragraphs.load("text");
           await context.sync();
-          console.log('🔍 Final validation of changes:');
+          console.log("🔍 Final validation of changes:");
           for (let i = 0; i < Math.min(paragraphs.items.length, 5); i++) {
             console.log(`   Paragraph ${i}: "${paragraphs.items[i].text.substring(0, 50)}..."`);
           }
         });
       }
-      
+
       // Handle other action types (insert, delete, move) if any
-      const insertActions = suggestions.filter(s => s.action === 'insert');
-      const deleteActions = suggestions.filter(s => s.action === 'delete');
-      const moveActions = suggestions.filter(s => s.action === 'move');
-      
+      const insertActions = suggestions.filter((s) => s.action === "insert");
+      const deleteActions = suggestions.filter((s) => s.action === "delete");
+      const moveActions = suggestions.filter((s) => s.action === "move");
+
       // Apply INSERT operations in a separate Word.run context
       if (insertActions.length > 0) {
-        console.log(`\n📝 Applying ${insertActions.length} INSERT actions in SINGLE Word.run context...`);
-        
+        console.log(
+          `\n📝 Applying ${insertActions.length} INSERT actions in SINGLE Word.run context...`
+        );
+
         await Word.run(async (context) => {
           // Get FRESH paragraph references within this context
           const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text');
+          paragraphs.load("text");
           await context.sync();
-          
-          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for insertion`);
-          
+
+          console.log(
+            `📚 Fresh context has ${paragraphs.items.length} paragraphs available for insertion`
+          );
+
           for (const suggestion of insertActions) {
             try {
-              console.log(`   Inserting after sequential ${suggestion.afterSequentialNumber}: "${suggestion.instruction}"`);
-              
+              console.log(
+                `   Inserting after sequential ${suggestion.afterSequentialNumber}: "${suggestion.instruction}"`
+              );
+
               // Resolve afterSequentialNumber to Word index using mapping
-              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.afterSequentialNumber, paragraphMapping);
+              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(
+                suggestion.afterSequentialNumber,
+                paragraphMapping
+              );
               if (afterWordIndex === null) {
-                console.error(`   ❌ Could not resolve afterSequentialNumber ${suggestion.afterSequentialNumber} to Word index`);
+                console.error(
+                  `   ❌ Could not resolve afterSequentialNumber ${suggestion.afterSequentialNumber} to Word index`
+                );
                 continue;
               }
-              
+
               // Use fresh paragraph reference from current context
               if (afterWordIndex >= 0 && afterWordIndex < paragraphs.items.length) {
                 const afterParagraph = paragraphs.items[afterWordIndex];
-                
+
                 console.log(`🔍 Inserting new paragraph after Word index ${afterWordIndex}...`);
-                console.log(`📋 After paragraph text: "${afterParagraph.text.substring(0, 50)}..."`);
-                
+                console.log(
+                  `📋 After paragraph text: "${afterParagraph.text.substring(0, 50)}..."`
+                );
+
                 if (suggestion.newContent) {
                   console.log(`📝 Creating new paragraph with content...`);
-                  
+
                   // Insert new paragraph AFTER the specified paragraph
                   // This creates a completely new paragraph, not appending to existing one
                   afterParagraph.insertParagraph(suggestion.newContent, Word.InsertLocation.after);
-                  
+
                   console.log(`✅ Inserted new paragraph after Word index ${afterWordIndex}`);
                   appliedCount++;
                 } else {
-                  console.warn(`⚠️ No newContent provided for insert after sequential ${suggestion.afterSequentialNumber}`);
+                  console.warn(
+                    `⚠️ No newContent provided for insert after sequential ${suggestion.afterSequentialNumber}`
+                  );
                 }
               } else {
-                console.error(`❌ Invalid after word index: ${afterWordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+                console.error(
+                  `❌ Invalid after word index: ${afterWordIndex} (must be 0 to ${paragraphs.items.length - 1})`
+                );
               }
             } catch (error) {
-              console.error(`   ❌ Failed to insert after sequential ${suggestion.afterSequentialNumber}:`, error);
+              console.error(
+                `   ❌ Failed to insert after sequential ${suggestion.afterSequentialNumber}:`,
+                error
+              );
             }
           }
-          
+
           // Single sync to commit all insert changes
           await context.sync();
           console.log(`✅ Applied ${insertActions.length} insertions and synced to document`);
-          
+
           // Validate insertions were applied
           const updatedParagraphs = context.document.body.paragraphs;
-          updatedParagraphs.load('text');
+          updatedParagraphs.load("text");
           await context.sync();
-          console.log('🔍 Final validation after insertions:');
+          console.log("🔍 Final validation after insertions:");
           console.log(`   Total paragraphs now: ${updatedParagraphs.items.length}`);
           for (let i = 0; i < Math.min(updatedParagraphs.items.length, 8); i++) {
-            console.log(`   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`);
+            console.log(
+              `   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`
+            );
           }
         });
       }
-      
+
       // Apply MOVE operations (copy/insert phase) in a separate Word.run context
       if (moveActions.length > 0) {
-        console.log(`\n🔄 Applying ${moveActions.length} MOVE actions (copy/insert phase) in SINGLE Word.run context...`);
-        
+        console.log(
+          `\n🔄 Applying ${moveActions.length} MOVE actions (copy/insert phase) in SINGLE Word.run context...`
+        );
+
         await Word.run(async (context) => {
           // Get FRESH paragraph references within this context
           const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text');
+          paragraphs.load("text");
           await context.sync();
-          
-          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for moves`);
-          
+
+          console.log(
+            `📚 Fresh context has ${paragraphs.items.length} paragraphs available for moves`
+          );
+
           for (const suggestion of moveActions) {
             try {
-              console.log(`   Moving sequential ${suggestion.sequentialNumber} after sequential ${suggestion.toAfterSequentialNumber}: "${suggestion.instruction}"`);
-              
+              console.log(
+                `   Moving sequential ${suggestion.sequentialNumber} after sequential ${suggestion.toAfterSequentialNumber}: "${suggestion.instruction}"`
+              );
+
               // Resolve source sequential number to Word index to get content
-              const sourceWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              const sourceWordIndex = this.documentService.resolveSequentialToWordIndex(
+                suggestion.sequentialNumber,
+                paragraphMapping
+              );
               if (sourceWordIndex === null) {
-                console.error(`   ❌ Could not resolve source sequential ${suggestion.sequentialNumber} to Word index`);
+                console.error(
+                  `   ❌ Could not resolve source sequential ${suggestion.sequentialNumber} to Word index`
+                );
                 continue;
               }
-              
+
               // Resolve target sequential number to Word index for insertion point
-              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.toAfterSequentialNumber, paragraphMapping);
+              const afterWordIndex = this.documentService.resolveSequentialToWordIndex(
+                suggestion.toAfterSequentialNumber,
+                paragraphMapping
+              );
               if (afterWordIndex === null) {
-                console.error(`   ❌ Could not resolve toAfterSequentialNumber ${suggestion.toAfterSequentialNumber} to Word index`);
+                console.error(
+                  `   ❌ Could not resolve toAfterSequentialNumber ${suggestion.toAfterSequentialNumber} to Word index`
+                );
                 continue;
               }
-              
+
               // Get source and target paragraphs
-              if (sourceWordIndex >= 0 && sourceWordIndex < paragraphs.items.length &&
-                  afterWordIndex >= 0 && afterWordIndex < paragraphs.items.length) {
-                
+              if (
+                sourceWordIndex >= 0 &&
+                sourceWordIndex < paragraphs.items.length &&
+                afterWordIndex >= 0 &&
+                afterWordIndex < paragraphs.items.length
+              ) {
                 const sourceParagraph = paragraphs.items[sourceWordIndex];
                 const afterParagraph = paragraphs.items[afterWordIndex];
-                
-                console.log(`🔍 Moving from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}...`);
+
+                console.log(
+                  `🔍 Moving from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}...`
+                );
                 console.log(`📋 Source text: "${sourceParagraph.text.substring(0, 50)}..."`);
                 console.log(`📋 Insert after: "${afterParagraph.text.substring(0, 50)}..."`);
-                
+
                 // Copy source content and insert after target
                 const sourceContent = sourceParagraph.text;
                 afterParagraph.insertParagraph(sourceContent, Word.InsertLocation.after);
-                
-                console.log(`✅ Copied paragraph content from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}`);
+
+                console.log(
+                  `✅ Copied paragraph content from Word index ${sourceWordIndex} to after Word index ${afterWordIndex}`
+                );
                 appliedCount++;
               } else {
-                console.error(`❌ Invalid word indices: source ${sourceWordIndex}, after ${afterWordIndex}`);
+                console.error(
+                  `❌ Invalid word indices: source ${sourceWordIndex}, after ${afterWordIndex}`
+                );
               }
             } catch (error) {
-              console.error(`   ❌ Failed to move sequential ${suggestion.sequentialNumber}:`, error);
+              console.error(
+                `   ❌ Failed to move sequential ${suggestion.sequentialNumber}:`,
+                error
+              );
             }
           }
-          
+
           // Single sync to commit all move copy/inserts
           await context.sync();
           console.log(`✅ Applied ${moveActions.length} move copy/inserts and synced to document`);
-          
+
           // Validate moves were applied
           const updatedParagraphs = context.document.body.paragraphs;
-          updatedParagraphs.load('text');
+          updatedParagraphs.load("text");
           await context.sync();
-          console.log('🔍 Final validation after moves:');
+          console.log("🔍 Final validation after moves:");
           console.log(`   Total paragraphs now: ${updatedParagraphs.items.length}`);
           for (let i = 0; i < Math.min(updatedParagraphs.items.length, 8); i++) {
-            console.log(`   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`);
+            console.log(
+              `   Paragraph ${i}: "${updatedParagraphs.items[i].text.substring(0, 50)}..."`
+            );
           }
         });
       }
-      
+
       // Apply ALL DELETE operations (move sources + regular deletes) in a separate Word.run context
-      const moveSourceDeletes = moveActions.map(move => ({
-        action: 'delete',
+      const moveSourceDeletes = moveActions.map((move) => ({
+        action: "delete",
         sequentialNumber: move.sequentialNumber,
         instruction: `Delete original source of moved paragraph ${move.sequentialNumber}`,
-        reason: 'Remove source paragraph after move operation'
+        reason: "Remove source paragraph after move operation",
       }));
       const allDeleteActions = [...deleteActions, ...moveSourceDeletes];
-      
+
       if (allDeleteActions.length > 0) {
-        console.log(`\n🗑️ Applying ${allDeleteActions.length} DELETE actions (${deleteActions.length} regular + ${moveSourceDeletes.length} move sources) in SINGLE Word.run context...`);
-        
+        console.log(
+          `\n🗑️ Applying ${allDeleteActions.length} DELETE actions (${deleteActions.length} regular + ${moveSourceDeletes.length} move sources) in SINGLE Word.run context...`
+        );
+
         // Sort ALL deletes in reverse order using Word IDs to avoid index shifting issues
         allDeleteActions.sort((a, b) => {
-          const aIndex = this.documentService.resolveSequentialToWordIndex(a.sequentialNumber, paragraphMapping);
-          const bIndex = this.documentService.resolveSequentialToWordIndex(b.sequentialNumber, paragraphMapping);
+          const aIndex = this.documentService.resolveSequentialToWordIndex(
+            a.sequentialNumber,
+            paragraphMapping
+          );
+          const bIndex = this.documentService.resolveSequentialToWordIndex(
+            b.sequentialNumber,
+            paragraphMapping
+          );
           return bIndex - aIndex; // Descending order
         });
-        console.log('🔄 Sorted all delete actions (regular + move sources) in reverse document order');
-        
+        console.log(
+          "🔄 Sorted all delete actions (regular + move sources) in reverse document order"
+        );
+
         await Word.run(async (context) => {
           // Get FRESH paragraph references within this context
           const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text');
+          paragraphs.load("text");
           await context.sync();
-          
-          console.log(`📚 Fresh context has ${paragraphs.items.length} paragraphs available for deletion`);
-          
+
+          console.log(
+            `📚 Fresh context has ${paragraphs.items.length} paragraphs available for deletion`
+          );
+
           for (const suggestion of allDeleteActions) {
             try {
-              console.log(`   Deleting sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`);
-              
+              console.log(
+                `   Deleting sequential ${suggestion.sequentialNumber}: "${suggestion.instruction}"`
+              );
+
               // Resolve sequential number to Word index using mapping
-              const wordIndex = this.documentService.resolveSequentialToWordIndex(suggestion.sequentialNumber, paragraphMapping);
+              const wordIndex = this.documentService.resolveSequentialToWordIndex(
+                suggestion.sequentialNumber,
+                paragraphMapping
+              );
               if (wordIndex === null) {
-                console.error(`   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index for deletion`);
+                console.error(
+                  `   ❌ Could not resolve sequential ${suggestion.sequentialNumber} to Word index for deletion`
+                );
                 continue;
               }
-              
+
               // Use fresh paragraph reference from current context
               if (wordIndex >= 0 && wordIndex < paragraphs.items.length) {
                 const paragraphToDelete = paragraphs.items[wordIndex];
-                
+
                 console.log(`🔍 Deleting paragraph at Word index ${wordIndex}...`);
-                console.log(`� Paragraph to delete: "${paragraphToDelete.text.substring(0, 50)}..."`);
-                
+                console.log(
+                  `� Paragraph to delete: "${paragraphToDelete.text.substring(0, 50)}..."`
+                );
+
                 // Delete the entire paragraph including marker
                 paragraphToDelete.getRange().delete();
-                
+
                 console.log(`✅ Deleted paragraph at Word index ${wordIndex}`);
                 appliedCount++;
               } else {
-                console.error(`❌ Invalid word index for deletion: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`);
+                console.error(
+                  `❌ Invalid word index for deletion: ${wordIndex} (must be 0 to ${paragraphs.items.length - 1})`
+                );
               }
             } catch (error) {
-              console.error(`   ❌ Failed to delete sequential ${suggestion.sequentialNumber}:`, error);
+              console.error(
+                `   ❌ Failed to delete sequential ${suggestion.sequentialNumber}:`,
+                error
+              );
             }
           }
-          
+
           // Single sync to commit all delete changes
           await context.sync();
           console.log(`✅ Applied ${allDeleteActions.length} deletions and synced to document`);
-          
+
           // Check for and clean up only consecutive empty paragraphs at document end
-          console.log('🧹 Checking for trailing empty paragraphs after deletion...');
+          console.log("🧹 Checking for trailing empty paragraphs after deletion...");
           const postDeleteParagraphs = context.document.body.paragraphs;
-          postDeleteParagraphs.load('text');
+          postDeleteParagraphs.load("text");
           await context.sync();
-          
+
           let emptyParagraphsFound = 0;
           // Only clean up empty paragraphs at the very end of the document
           for (let i = postDeleteParagraphs.items.length - 1; i >= 0; i--) {
             const para = postDeleteParagraphs.items[i];
-            if (para.text.trim() === '') {
+            if (para.text.trim() === "") {
               console.log(`🧹 Found trailing empty paragraph at index ${i}, removing...`);
               para.delete();
               emptyParagraphsFound++;
@@ -955,27 +1089,30 @@ class AIDocumentReviewService {
               break;
             }
           }
-          
+
           if (emptyParagraphsFound > 0) {
             await context.sync();
-            console.log(`✅ Cleaned up ${emptyParagraphsFound} trailing empty paragraphs after deletion`);
+            console.log(
+              `✅ Cleaned up ${emptyParagraphsFound} trailing empty paragraphs after deletion`
+            );
           }
-          
+
           // Final validation after deletions and cleanup
           const finalParagraphs = context.document.body.paragraphs;
-          finalParagraphs.load('text');
+          finalParagraphs.load("text");
           await context.sync();
-          console.log('🔍 Final validation after deletions and cleanup:');
+          console.log("🔍 Final validation after deletions and cleanup:");
           console.log(`   Total paragraphs now: ${finalParagraphs.items.length}`);
           for (let i = 0; i < Math.min(finalParagraphs.items.length, 8); i++) {
             const text = finalParagraphs.items[i].text.trim();
-            console.log(`   Paragraph ${i}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" (${text.length} chars)`);
+            console.log(
+              `   Paragraph ${i}: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}" (${text.length} chars)`
+            );
           }
         });
       }
-      
     } catch (error) {
-      console.error('🚨 CRITICAL ERROR in mapping-based application:', error);
+      console.error("🚨 CRITICAL ERROR in mapping-based application:", error);
       throw error;
     }
 
@@ -983,28 +1120,30 @@ class AIDocumentReviewService {
     if (this.aiService.logger) {
       this.aiService.logger.markApplied(appliedCount);
       this.aiService.fileLogger.markApplied(appliedCount);
-      
+
       // Save the session to markdown file
       try {
         await this.aiService.logger.saveSession();
         console.log(`📄 Analysis session saved to browser storage`);
       } catch (error) {
-        console.warn('Failed to save browser analysis session:', error);
+        console.warn("Failed to save browser analysis session:", error);
       }
     }
-    
+
     // Append the log data to the document AFTER suggestions are applied
     try {
       const logContent = this.aiService.fileLogger.getSessionContent();
       await this.documentService.appendLogData(logContent);
       console.log(`📄 Appended analysis log to the document after applying suggestions.`);
     } catch (error) {
-      console.warn('Failed to append analysis log to document:', error);
+      console.warn("Failed to append analysis log to document:", error);
     }
-    
-    console.log(`\n🎯 MAPPING-BASED APPLICATION COMPLETE: ${appliedCount}/${suggestions.length} suggestions applied`);
-    console.log('=' .repeat(60));
-    
+
+    console.log(
+      `\n🎯 MAPPING-BASED APPLICATION COMPLETE: ${appliedCount}/${suggestions.length} suggestions applied`
+    );
+    console.log("=".repeat(60));
+
     return appliedCount;
   }
 
@@ -1014,11 +1153,11 @@ class AIDocumentReviewService {
    */
   async getDocumentInfo() {
     const wordCount = await this.documentService.getWordCount();
-    
+
     return {
       wordCount,
       paragraphCount: 0, // Simplified for now
-      isValid: wordCount > 0 && wordCount <= 10000
+      isValid: wordCount > 0 && wordCount <= 10000,
     };
   }
 
@@ -1044,25 +1183,27 @@ class AIDocumentReviewService {
    */
   showSavedSessions() {
     const sessions = this.getSavedSessions();
-    
-    console.log('\n📚 SAVED ANALYSIS SESSIONS:');
-    console.log('=' .repeat(60));
-    
+
+    console.log("\n📚 SAVED ANALYSIS SESSIONS:");
+    console.log("=".repeat(60));
+
     if (sessions.length === 0) {
-      console.log('No saved sessions found.');
+      console.log("No saved sessions found.");
     } else {
       sessions.forEach((session, index) => {
         const date = new Date(session.timestamp).toLocaleString();
         console.log(`${index + 1}. Session: ${session.sessionId}`);
         console.log(`   Date: ${date}`);
-        console.log(`   Document: ${session.wordCount} words, ${session.suggestionCount} suggestions`);
-        console.log('   -'.repeat(30));
+        console.log(
+          `   Document: ${session.wordCount} words, ${session.suggestionCount} suggestions`
+        );
+        console.log("   -".repeat(30));
       });
-      
+
       console.log(`\nTotal: ${sessions.length} sessions saved`);
-      console.log('Use loadSession(sessionId) to view details');
+      console.log("Use loadSession(sessionId) to view details");
     }
-    console.log('=' .repeat(60));
+    console.log("=".repeat(60));
   }
 }
 

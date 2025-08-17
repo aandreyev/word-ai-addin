@@ -1,4 +1,4 @@
-import { IPromptService } from '../types/interfaces';
+import { IPromptService } from "../types/interfaces";
 
 /**
  * Service for managing prompt templates and substitution
@@ -25,12 +25,12 @@ export class PromptService implements IPromptService {
       if (!response.ok) {
         throw new Error(`Failed to load prompt file: ${filename}`);
       }
-      
+
       const content = await response.text();
-      
+
       // Cache the prompt for future use
       this.promptCache.set(filename, content);
-      
+
       return content;
     } catch (error) {
       console.error(`Error loading prompt ${filename}:`, error);
@@ -46,13 +46,16 @@ export class PromptService implements IPromptService {
    */
   substituteTemplate(template: string, data: Record<string, string>): string {
     let result = template;
-    
+
     // Replace all placeholders in the format [KEY] with values from data
     for (const [key, value] of Object.entries(data)) {
       const placeholder = `[${key}]`;
-      result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+      result = result.replace(
+        new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+        value
+      );
     }
-    
+
     return result;
   }
 
@@ -69,9 +72,9 @@ export class PromptService implements IPromptService {
    * @returns Promise<string> - Complete prompt ready for AI
    */
   async getPass1StrategyPrompt(documentText: string): Promise<string> {
-    const template = await this.loadPrompt('pass1_strategy_prompt.md');
+    const template = await this.loadPrompt("pass1_strategy_prompt.md");
     return this.substituteTemplate(template, {
-      'DOCUMENT_TEXT': documentText
+      DOCUMENT_TEXT: documentText,
     });
   }
 
@@ -81,11 +84,11 @@ export class PromptService implements IPromptService {
    * @param originalText - The original paragraph text (empty for insertions)
    * @returns Promise<string> - Complete prompt ready for AI
    */
-  async getPass2ExecutionPrompt(instruction: string, originalText: string = ''): Promise<string> {
-    const template = await this.loadPrompt('pass2_execution_prompt.md');
+  async getPass2ExecutionPrompt(instruction: string, originalText: string = ""): Promise<string> {
+    const template = await this.loadPrompt("pass2_execution_prompt.md");
     return this.substituteTemplate(template, {
-      'INSTRUCTION': instruction,
-      'ORIGINAL_TEXT': originalText
+      INSTRUCTION: instruction,
+      ORIGINAL_TEXT: originalText,
     });
   }
 }

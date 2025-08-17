@@ -1,4 +1,4 @@
-import { IValidationService, EditAction } from '../types/interfaces';
+import { IValidationService, EditAction } from "../types/interfaces";
 
 /**
  * Service for validating AI responses and ensuring safe document operations
@@ -17,28 +17,31 @@ export class ValidationService implements IValidationService {
   validateJsonResponse(response: string): EditAction[] {
     try {
       // Remove any markdown formatting that might be present
-      const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+      const cleanResponse = response
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+
       // Parse the JSON
       const parsed = JSON.parse(cleanResponse);
-      
+
       // Ensure it's an array
       if (!Array.isArray(parsed)) {
-        throw new Error('AI response must be a JSON array');
+        throw new Error("AI response must be a JSON array");
       }
-      
+
       // Validate each action object
       const actions: EditAction[] = [];
       for (let i = 0; i < parsed.length; i++) {
         const action = this.validateAction(parsed[i], i);
         actions.push(action);
       }
-      
+
       return actions;
     } catch (error) {
-      console.error('JSON validation error:', error);
+      console.error("JSON validation error:", error);
       if (error instanceof SyntaxError) {
-        throw new Error('AI service returned an unexpected response. Please try again.');
+        throw new Error("AI service returned an unexpected response. Please try again.");
       }
       throw error;
     }
@@ -51,38 +54,38 @@ export class ValidationService implements IValidationService {
    * @returns EditAction - Validated action object
    */
   private validateAction(action: any, index: number): EditAction {
-    if (!action || typeof action !== 'object') {
+    if (!action || typeof action !== "object") {
       throw new Error(`Action ${index} is not a valid object`);
     }
 
-    if (!action.action || typeof action.action !== 'string') {
+    if (!action.action || typeof action.action !== "string") {
       throw new Error(`Action ${index} missing required 'action' field`);
     }
 
-    const validActions = ['modify', 'delete', 'insert', 'move'];
+    const validActions = ["modify", "delete", "insert", "move"];
     if (!validActions.includes(action.action)) {
       throw new Error(`Action ${index} has invalid action type: ${action.action}`);
     }
 
     // Validate required fields based on action type
     switch (action.action) {
-      case 'modify':
-        this.validateRequiredFields(action, ['index', 'instruction'], index);
+      case "modify":
+        this.validateRequiredFields(action, ["index", "instruction"], index);
         this.validateNumber(action.index, `Action ${index} index`);
         break;
-      
-      case 'delete':
-        this.validateRequiredFields(action, ['index', 'reason'], index);
+
+      case "delete":
+        this.validateRequiredFields(action, ["index", "reason"], index);
         this.validateNumber(action.index, `Action ${index} index`);
         break;
-      
-      case 'insert':
-        this.validateRequiredFields(action, ['after_index', 'content_prompt'], index);
+
+      case "insert":
+        this.validateRequiredFields(action, ["after_index", "content_prompt"], index);
         this.validateNumber(action.after_index, `Action ${index} after_index`, true); // Allow -1
         break;
-      
-      case 'move':
-        this.validateRequiredFields(action, ['from_index', 'to_after_index'], index);
+
+      case "move":
+        this.validateRequiredFields(action, ["from_index", "to_after_index"], index);
         this.validateNumber(action.from_index, `Action ${index} from_index`);
         this.validateNumber(action.to_after_index, `Action ${index} to_after_index`, true); // Allow -1
         break;
@@ -99,7 +102,7 @@ export class ValidationService implements IValidationService {
       if (action[field] === undefined || action[field] === null) {
         throw new Error(`Action ${actionIndex} missing required field: ${field}`);
       }
-      if (typeof action[field] === 'string' && action[field].trim() === '') {
+      if (typeof action[field] === "string" && action[field].trim() === "") {
         throw new Error(`Action ${actionIndex} field '${field}' cannot be empty`);
       }
     }
@@ -109,11 +112,11 @@ export class ValidationService implements IValidationService {
    * Validate that a value is a valid number (integer)
    */
   private validateNumber(value: any, fieldName: string, allowNegativeOne: boolean = false): void {
-    if (typeof value !== 'number' || !Number.isInteger(value)) {
+    if (typeof value !== "number" || !Number.isInteger(value)) {
       throw new Error(`${fieldName} must be an integer`);
     }
     if (value < 0 && !(allowNegativeOne && value === -1)) {
-      throw new Error(`${fieldName} must be non-negative${allowNegativeOne ? ' (or -1)' : ''}`);
+      throw new Error(`${fieldName} must be non-negative${allowNegativeOne ? " (or -1)" : ""}`);
     }
   }
 
@@ -126,23 +129,25 @@ export class ValidationService implements IValidationService {
   validateActionBounds(actions: EditAction[], paragraphCount: number): boolean {
     for (const action of actions) {
       switch (action.action) {
-        case 'modify':
-        case 'delete':
+        case "modify":
+        case "delete":
           if (action.index! >= paragraphCount) {
-            console.error(`Action index ${action.index} exceeds document bounds (${paragraphCount} paragraphs)`);
+            console.error(
+              `Action index ${action.index} exceeds document bounds (${paragraphCount} paragraphs)`
+            );
             return false;
           }
           break;
-        
-        case 'insert':
+
+        case "insert":
           // after_index can be -1 (beginning) or up to paragraphCount-1
           if (action.after_index! !== -1 && action.after_index! >= paragraphCount) {
             console.error(`Insert after_index ${action.after_index} exceeds document bounds`);
             return false;
           }
           break;
-        
-        case 'move':
+
+        case "move":
           if (action.from_index! >= paragraphCount) {
             console.error(`Move from_index ${action.from_index} exceeds document bounds`);
             return false;
@@ -165,16 +170,20 @@ export class ValidationService implements IValidationService {
   validateActionLimits(actions: EditAction[]): boolean {
     // Check total action count
     if (actions.length > this.MAX_ACTIONS_PER_DOCUMENT) {
-      console.error(`Too many actions: ${actions.length} exceeds limit of ${this.MAX_ACTIONS_PER_DOCUMENT}`);
+      console.error(
+        `Too many actions: ${actions.length} exceeds limit of ${this.MAX_ACTIONS_PER_DOCUMENT}`
+      );
       return false;
     }
 
     // Count deletion actions to prevent excessive deletion
-    const deleteActions = actions.filter(action => action.action === 'delete');
+    const deleteActions = actions.filter((action) => action.action === "delete");
     const deletePercentage = deleteActions.length / actions.length;
-    
+
     if (deletePercentage > this.MAX_DELETION_PERCENTAGE) {
-      console.error(`Too many deletions: ${deletePercentage * 100}% exceeds limit of ${this.MAX_DELETION_PERCENTAGE * 100}%`);
+      console.error(
+        `Too many deletions: ${deletePercentage * 100}% exceeds limit of ${this.MAX_DELETION_PERCENTAGE * 100}%`
+      );
       return false;
     }
 
@@ -191,18 +200,20 @@ export class ValidationService implements IValidationService {
   validateResponse(response: string, paragraphCount: number): EditAction[] {
     // Step 1: Parse and validate JSON structure
     const actions = this.validateJsonResponse(response);
-    
+
     // Step 2: Validate action limits
     if (!this.validateActionLimits(actions)) {
-      throw new Error('AI response contains too many actions or unsafe action ratios');
+      throw new Error("AI response contains too many actions or unsafe action ratios");
     }
-    
+
     // Step 3: Validate bounds
     if (!this.validateActionBounds(actions, paragraphCount)) {
-      throw new Error('AI response contains actions that exceed document bounds');
+      throw new Error("AI response contains actions that exceed document bounds");
     }
-    
-    console.log(`Validation passed: ${actions.length} actions validated for document with ${paragraphCount} paragraphs`);
+
+    console.log(
+      `Validation passed: ${actions.length} actions validated for document with ${paragraphCount} paragraphs`
+    );
     return actions;
   }
 
@@ -215,20 +226,21 @@ export class ValidationService implements IValidationService {
     insertions: EditAction[];
     deletionsAndMoves: EditAction[];
   } {
-    const modifications = actions.filter(a => a.action === 'modify');
-    const insertions = actions.filter(a => a.action === 'insert');
-    const deletionsAndMoves = actions.filter(a => a.action === 'delete' || a.action === 'move')
+    const modifications = actions.filter((a) => a.action === "modify");
+    const insertions = actions.filter((a) => a.action === "insert");
+    const deletionsAndMoves = actions
+      .filter((a) => a.action === "delete" || a.action === "move")
       .sort((a, b) => {
         // Sort deletions and moves by descending index to prevent reference shifting
-        const aIndex = a.action === 'delete' ? a.index! : a.from_index!;
-        const bIndex = b.action === 'delete' ? b.index! : b.from_index!;
+        const aIndex = a.action === "delete" ? a.index! : a.from_index!;
+        const bIndex = b.action === "delete" ? b.index! : b.from_index!;
         return bIndex - aIndex;
       });
 
     return {
       modifications,
       insertions,
-      deletionsAndMoves
+      deletionsAndMoves,
     };
   }
 }

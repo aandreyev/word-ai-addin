@@ -1,8 +1,51 @@
 {
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "module",
+    "project": ["./tsconfig.json"]
+  },
   "plugins": [
-    "office-addins"
+    "office-addins",
+    "@typescript-eslint"
   ],
   "extends": [
-    "plugin:office-addins/recommended"
+    "plugin:office-addins/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "globals": {
+    "Office": "readonly",
+    "Word": "readonly",
+    "GlobalDocumentInfo": "readonly",
+    "window": "readonly",
+    "document": "readonly",
+    "fetch": "readonly",
+    "Blob": "readonly",
+    "URL": "readonly",
+    "localStorage": "readonly"
+  },
+  "rules": {
+    "no-undef": "off",
+    "no-console": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.js", "*.jsx"],
+      "rules": {
+        "no-undef": "off"
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "parserOptions": {
+        "project": ["./tsconfig.json"]
+      }
+    }
   ]
 }
